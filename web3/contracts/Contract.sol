@@ -37,7 +37,7 @@ contract CCIPTokenSender is OwnerIsCreator {
         address _receiver,
         address _token,
         uint256 _amount
-    ) external onlyOwner returns (bytes32 messageId) {
+    ) internal onlyOwner returns (bytes32 messageId) {
         Client.EVMTokenAmount[]
             memory tokenAmounts = new Client.EVMTokenAmount[](1);
         Client.EVMTokenAmount memory tokenAmount = Client.EVMTokenAmount({
@@ -91,5 +91,80 @@ contract CCIPTokenSender is OwnerIsCreator {
         if (amount == 0) revert NothingToWithdraw();
 
         IERC20(_token).transfer(_beneficiary, amount);
+    }
+
+    struct GrantReceiver {
+        address owner;
+        string name;
+        address receiveraddress;
+        string location;
+        string image;
+        uint256 totalReceived;
+    }
+
+    mapping(string => GrantReceiver) public grantreceivers;
+    mapping(address => GrantReceiver) public grantTracker;
+    mapping(uint256 => GrantReceiver) public grantreceiversdisplay;
+    uint256 public numberOfReceivers;
+    uint256 id;
+    struct granteesList {
+        string name;
+    }
+
+    function register(
+        string memory _name,
+        address _receiveraddress,
+        string memory _location,
+        string memory _image
+    ) private {
+        GrantReceiver memory grantReceiver;
+        id++;
+        grantReceiver.name = _name;
+        grantReceiver.owner = msg.sender;
+        grantReceiver.receiveraddress = _receiveraddress;
+        grantReceiver.location = _location;
+        grantReceiver.image = _image;
+        grantreceivers[_name] = grantReceiver;
+        grantreceiversdisplay[id] = grantReceiver;
+        grantTracker[_receiveraddress] = grantReceiver;
+    }
+
+    function requestGrant(string memory _name, string memory _location) public {
+        GrantReceiver memory grantReceiver = grantreceivers[_name];
+        locationTracker(_location);
+    }
+
+    function locationTracker(string memory _location) private {
+        // grant(msg.sender);
+    }
+
+    // function grant(address _receiveraddress) public payable {
+    //     (bool callSuccess, ) = payable(_receiveraddress).call{value: msg.value}(
+    //         ""
+    //     );
+    //     require(callSuccess, "Call failed");
+    //     GrantReceiver memory grantReceiver = grantTracker[_receiveraddress];
+    //     grantReceiver.totalReceived += msg.value;
+    // }
+    function grant(
+        uint64 _destinationChainSelector,
+        address _receiver,
+        address _token,
+        uint256 _amount
+    ) public {
+        transferTokens(_destinationChainSelector, _receiver, _token, _amount);
+    }
+
+    function getReceivers() public view returns (GrantReceiver[] memory) {
+        GrantReceiver[] memory allreceivers = new GrantReceiver[](
+            numberOfReceivers
+        );
+
+        for (uint i = 0; i < numberOfReceivers; i++) {
+            GrantReceiver storage item = grantreceiversdisplay[i];
+            allreceivers[i] = item;
+        }
+
+        return (allreceivers);
     }
 }
