@@ -7,7 +7,7 @@ import {Client} from "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.s
 import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/token/ERC20/IERC20.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 
-contract CCIPTokenSender is OwnerIsCreator {
+contract EcoFilend is OwnerIsCreator {
     IRouterClient router;
     LinkTokenInterface linkToken;
 
@@ -63,8 +63,6 @@ contract CCIPTokenSender is OwnerIsCreator {
         if (fees > linkToken.balanceOf(address(this)))
             revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
 
-        linkToken.approve(address(router), fees);
-
         // Approve Router to spend CCIP-BnM tokens we send
         IERC20(_token).approve(address(router), _amount);
 
@@ -93,14 +91,25 @@ contract CCIPTokenSender is OwnerIsCreator {
         IERC20(_token).transfer(_beneficiary, amount);
     }
 
+    receive() external payable {}
+
     struct GrantReceiver {
         address owner;
         string name;
+        uint256 projectId;
         address receiveraddress;
         string location;
         string image;
         uint256 totalReceived;
+        uint256 stakePower;
     }
+    // Mapping to track insurance funds per project
+    mapping(uint256 => uint256) public projectInsurancePools;
+
+    // Define conditions for insurance payout per project
+    mapping(uint256 => bool) public projectFailed;
+
+    mapping(uint256 => mapping(address => uint256)) public projectStakes;
 
     mapping(string => GrantReceiver) public grantreceivers;
     mapping(address => GrantReceiver) public grantTracker;
@@ -119,6 +128,7 @@ contract CCIPTokenSender is OwnerIsCreator {
     ) private {
         GrantReceiver memory grantReceiver;
         id++;
+        grantReceiver.projectId = id;
         grantReceiver.name = _name;
         grantReceiver.owner = msg.sender;
         grantReceiver.receiveraddress = _receiveraddress;
@@ -129,15 +139,10 @@ contract CCIPTokenSender is OwnerIsCreator {
         grantTracker[_receiveraddress] = grantReceiver;
     }
 
-    function requestGrant(string memory _name, string memory _location) public {
-        GrantReceiver memory grantReceiver = grantreceivers[_name];
-        locationTracker(_location);
-    }
-
-    function locationTracker(string memory _location) private {
-        // grant(msg.sender);
-    }
-
+    // function requestGrant(uint256 _id, string memory _location) public {
+    //     GrantReceiver memory grantReceiver = grantreceiversdisplay[_id];
+    //     locationTracker(_location);
+    // }
     // function grant(address _receiveraddress) public payable {
     //     (bool callSuccess, ) = payable(_receiveraddress).call{value: msg.value}(
     //         ""
@@ -147,13 +152,20 @@ contract CCIPTokenSender is OwnerIsCreator {
     //     grantReceiver.totalReceived += msg.value;
     // }
     function grant(
+        uint256 _projectId,
+        string memory _location,
         uint64 _destinationChainSelector,
         address _receiver,
         address _token,
         uint256 _amount
     ) public {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
+        grantReceiver.totalReceived += _amount;
+        locationTracker(_location);
         transferTokens(_destinationChainSelector, _receiver, _token, _amount);
     }
+
+    function locationTracker(string memory _location) private {}
 
     function getReceivers() public view returns (GrantReceiver[] memory) {
         GrantReceiver[] memory allreceivers = new GrantReceiver[](
@@ -166,5 +178,65 @@ contract CCIPTokenSender is OwnerIsCreator {
         }
 
         return (allreceivers);
+    }
+
+    function getReceiverBalance(uint256 _id) public view returns (uint256) {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[_id];
+        uint256 balance = grantReceiver.totalReceived;
+        return balance;
+    }
+
+    function stakeTokensForProject(
+        uint256 projectId,
+        uint256 _amount
+    ) public payable {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+        address staker = msg.sender;
+        uint256 insurance = _amount * 100000000000000;
+        uint256 amount = _amount - insurance;
+        (bool callSuccess, ) = payable(grantReceiver.owner).call{value: amount}(
+            ""
+        );
+        require(callSuccess, "Call Failed");
+        grantReceiver.totalReceived += amount;
+        projectStakes[projectId][staker] += amount;
+        contributeToInsurancePool(projectId, insurance);
+    }
+
+    // Function for stakeholders to contribute to a project's insurance pool
+    function contributeToInsurancePool(
+        uint256 projectId,
+        uint256 insurance
+    ) public payable {
+        // Update projectInsurancePools mapping with the contribution
+        projectInsurancePools[projectId] = insurance;
+        (bool callSuccess, ) = payable(address(this)).call{value: insurance}(
+            ""
+        );
+        require(callSuccess, "Call Failed");
+    }
+
+    // Function to trigger insurance payouts based on project conditions
+    function triggerInsurancePayout(uint256 projectId) public {
+        require(
+            projectFailed[projectId],
+            "Project hasn't failed or met criteria"
+        );
+        // Calculate payout based on stakes in the project's insurance pool
+        uint256 totalInsurance = projectInsurancePools[projectId];
+        uint256 totalStake = projectStakes[projectId][msg.sender];
+        uint256 payout = totalStake;
+
+        // Distribute the compensation to stakeholders
+        (bool callSuccess, ) = payable(msg.sender).call{value: payout}("");
+        require(callSuccess, "Call Failed");
+        //Updates Insurance and Stake
+        projectInsurancePools[projectId] = totalInsurance - payout;
+        projectStakes[projectId][msg.sender] = 0;
+    }
+
+    // Function to update project status (e.g., if it fails to meet certain conditions)
+    function updateProjectStatus(uint256 projectId, bool isFailed) public {
+        projectFailed[projectId] = isFailed;
     }
 }
