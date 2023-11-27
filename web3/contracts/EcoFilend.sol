@@ -139,18 +139,6 @@ contract EcoFilend is OwnerIsCreator {
         grantTracker[_receiveraddress] = grantReceiver;
     }
 
-    // function requestGrant(uint256 _id, string memory _location) public {
-    //     GrantReceiver memory grantReceiver = grantreceiversdisplay[_id];
-    //     locationTracker(_location);
-    // }
-    // function grant(address _receiveraddress) public payable {
-    //     (bool callSuccess, ) = payable(_receiveraddress).call{value: msg.value}(
-    //         ""
-    //     );
-    //     require(callSuccess, "Call failed");
-    //     GrantReceiver memory grantReceiver = grantTracker[_receiveraddress];
-    //     grantReceiver.totalReceived += msg.value;
-    // }
     function grant(
         uint256 _projectId,
         string memory _location,
@@ -164,6 +152,10 @@ contract EcoFilend is OwnerIsCreator {
         locationTracker(_location);
         transferTokens(_destinationChainSelector, _receiver, _token, _amount);
     }
+
+    // function drip(address to) external {
+    //     _mint(to, 1e18);
+    // }
 
     function locationTracker(string memory _location) private {}
 
@@ -192,7 +184,7 @@ contract EcoFilend is OwnerIsCreator {
     ) public payable {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
         address staker = msg.sender;
-        uint256 insurance = _amount * 100000000000000;
+        uint256 insurance = (_amount * 10) / 100;
         uint256 amount = _amount - insurance;
         (bool callSuccess, ) = payable(grantReceiver.owner).call{value: amount}(
             ""
