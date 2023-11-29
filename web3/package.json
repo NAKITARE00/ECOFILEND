@@ -7,15 +7,23 @@
   },
   "devDependencies": {
     "@matterlabs/hardhat-zksync-solc": "^0.3.17",
-    "@chainlink/contracts": "^0.6.1",
-    "@chainlink/contracts-ccip": "^0.7.3",
-    "@chainlink/env-enc": "^1.0.5",
     "@nomicfoundation/hardhat-toolbox": "^2.0.1",
     "ethers": "^5.7.2",
-    "hardhat": "^2.14.1"
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "hardhat": "^2.19.0",
+    "ts-node": "^10.9.1"
   },
   "dependencies": {
     "@thirdweb-dev/contracts": "^3.8.0",
-    "zksync-web3": "^0.14.3"
+    "zksync-web3": "^0.14.3",
+    "@chainlink/contracts": "^0.8.0",
+    "@chainlink/contracts-ccip": "^0.7.3",
+    "@chainlink/env-enc": "^1.0.5",
+    "@chainlink/functions-toolkit": "^0.2.6",
+    "@types/node": "^20.6.2",
+    "dotenv": "^16.3.1",
+    "nodemon": "^3.0.1",
+    "typescript": "^5.2.2"
   }
 }

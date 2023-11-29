@@ -6,10 +6,29 @@ import {IRouterClient} from "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/
 import {Client} from "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
 import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/token/ERC20/IERC20.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
+import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
+import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 
-contract EcoFilend is OwnerIsCreator {
+contract EcoFilend is FunctionsClient, ConfirmedOwner {
+    //ChainLinkFunctionsSetup
+    using FunctionsRequest for FunctionsRequest.Request;
+    bytes32 public donId;
+    bytes32 public s_lastRequestId;
+    bytes public s_lastResponse;
+    bytes public s_lastError;
+
+    string source;
+    FunctionsRequest.Location secretsLocation;
+    bytes[] bytesArgs;
+    uint64 subscriptionId;
+    uint32 callbackGasLimit;
+
+    //CCIPSETUP
     IRouterClient router;
     LinkTokenInterface linkToken;
+    uint64 destinationChainSelector;
+    address token;
 
     mapping(uint64 => bool) public whitelistedChains;
 
@@ -27,21 +46,79 @@ contract EcoFilend is OwnerIsCreator {
         uint256 fees // The fees paid for sending the message.
     );
 
-    constructor(address _router, address _link) {
+    constructor(
+        address _router,
+        address _link,
+        address _token,
+        uint64 _destinationChainSelector,
+        bytes32 _donId,
+        string memory _source,
+        FunctionsRequest.Location _secretsLocation,
+        bytes[] memory _bytesArgs,
+        uint64 _subscriptionId,
+        uint32 _callbackGasLimit
+    ) FunctionsClient(_router) ConfirmedOwner(msg.sender) {
         router = IRouterClient(_router);
         linkToken = LinkTokenInterface(_link);
+        LinkTokenInterface(_link).approve(_router, type(uint256).max);
+        donId = _donId;
+        token = _token;
+        destinationChainSelector = _destinationChainSelector;
+        source = _source;
+        secretsLocation = _secretsLocation;
+        bytesArgs = _bytesArgs;
+        subscriptionId = _subscriptionId;
+        callbackGasLimit = _callbackGasLimit;
     }
 
+    //CHAINLINKFUNCTIONS
+
+    function setDonId(bytes32 newDonId) external onlyOwner {
+        donId = newDonId;
+    }
+
+    function makeRequest(string[] memory args) internal {
+        FunctionsRequest.Request memory req;
+        req.initializeRequest(
+            FunctionsRequest.Location.Inline,
+            FunctionsRequest.CodeLanguage.JavaScript,
+            source
+        );
+
+        if (args.length > 0) {
+            req.setArgs(args);
+        }
+
+        if (bytesArgs.length > 0) {
+            req.setBytesArgs(bytesArgs);
+        }
+
+        s_lastRequestId = _sendRequest(
+            req.encodeCBOR(),
+            subscriptionId,
+            callbackGasLimit,
+            donId
+        );
+    }
+
+    function fulfillRequest(
+        bytes32 requestId,
+        bytes memory response,
+        bytes memory err
+    ) internal override {
+        s_lastResponse = response;
+        s_lastError = err;
+    }
+
+    //CCIPFUNCTIONS
     function transferTokens(
-        uint64 _destinationChainSelector,
         address _receiver,
-        address _token,
         uint256 _amount
-    ) internal onlyOwner returns (bytes32 messageId) {
+    ) internal returns (bytes32 messageId) {
         Client.EVMTokenAmount[]
             memory tokenAmounts = new Client.EVMTokenAmount[](1);
         Client.EVMTokenAmount memory tokenAmount = Client.EVMTokenAmount({
-            token: _token,
+            token: token,
             amount: _amount
         });
         tokenAmounts[0] = tokenAmount;
@@ -58,26 +135,53 @@ contract EcoFilend is OwnerIsCreator {
         });
 
         // CCIP Fees Management
-        uint256 fees = router.getFee(_destinationChainSelector, message);
+        uint256 fees = router.getFee(destinationChainSelector, message);
 
         if (fees > linkToken.balanceOf(address(this)))
             revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
 
         // Approve Router to spend CCIP-BnM tokens we send
-        IERC20(_token).approve(address(router), _amount);
+        IERC20(token).approve(address(router), _amount);
 
         // Send CCIP Message
-        messageId = router.ccipSend(_destinationChainSelector, message);
+        messageId = router.ccipSend(destinationChainSelector, message);
 
         emit TokensTransferred(
             messageId,
-            _destinationChainSelector,
+            destinationChainSelector,
             _receiver,
-            _token,
+            token,
             _amount,
             address(linkToken),
             fees
         );
+    }
+
+    //mints CROSSCHAIN NFT (Staking Certificate)
+    event MessageSent(bytes32 messageId);
+
+    function mint(address receiver) internal {
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            receiver: abi.encode(receiver),
+            data: abi.encodeWithSignature("mint(address)", msg.sender),
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            extraArgs: "",
+            feeToken: address(linkToken)
+        });
+
+        uint256 fee = IRouterClient(router).getFee(
+            destinationChainSelector,
+            message
+        );
+
+        bytes32 messageId;
+
+        messageId = IRouterClient(router).ccipSend(
+            destinationChainSelector,
+            message
+        );
+
+        emit MessageSent(messageId);
     }
 
     function withdrawToken(
@@ -93,12 +197,15 @@ contract EcoFilend is OwnerIsCreator {
 
     receive() external payable {}
 
+    //ECOFILENDSETUP
+
     struct GrantReceiver {
         address owner;
         string name;
         uint256 projectId;
-        address receiveraddress;
-        string location;
+        string city;
+        string state;
+        string country;
         string image;
         uint256 totalReceived;
         uint256 stakePower;
@@ -107,7 +214,7 @@ contract EcoFilend is OwnerIsCreator {
     mapping(uint256 => uint256) public projectInsurancePools;
 
     // Define conditions for insurance payout per project
-    mapping(uint256 => bool) public projectFailed;
+    // mapping(uint256 => bool) public projectFailed;
 
     mapping(uint256 => mapping(address => uint256)) public projectStakes;
 
@@ -123,41 +230,43 @@ contract EcoFilend is OwnerIsCreator {
     function register(
         string memory _name,
         address _receiveraddress,
-        string memory _location,
+        string memory _city,
+        string memory _state,
+        string memory _country,
         string memory _image
     ) private {
         GrantReceiver memory grantReceiver;
         id++;
         grantReceiver.projectId = id;
         grantReceiver.name = _name;
-        grantReceiver.owner = msg.sender;
-        grantReceiver.receiveraddress = _receiveraddress;
-        grantReceiver.location = _location;
+        grantReceiver.owner = _receiveraddress;
+        grantReceiver.city = _city;
+        grantReceiver.state = _state;
+        grantReceiver.country = _country;
         grantReceiver.image = _image;
         grantreceivers[_name] = grantReceiver;
         grantreceiversdisplay[id] = grantReceiver;
         grantTracker[_receiveraddress] = grantReceiver;
     }
 
-    function grant(
-        uint256 _projectId,
-        string memory _location,
-        uint64 _destinationChainSelector,
-        address _receiver,
-        address _token,
-        uint256 _amount
-    ) public {
+    string[] locationData;
+
+    function grant(uint256 _projectId, uint256 _amount) public {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
         grantReceiver.totalReceived += _amount;
-        locationTracker(_location);
-        transferTokens(_destinationChainSelector, _receiver, _token, _amount);
+
+        locationData.push(grantReceiver.city);
+        locationData.push(grantReceiver.state);
+        locationData.push(grantReceiver.country);
+        makeRequest(locationData);
+        transferTokens(grantReceiver.owner, _amount);
     }
 
-    // function drip(address to) external {
-    //     _mint(to, 1e18);
-    // }
-
-    function locationTracker(string memory _location) private {}
+    function locationTracker(
+        string memory city,
+        string memory state,
+        string memory country
+    ) private {}
 
     function getReceivers() public view returns (GrantReceiver[] memory) {
         GrantReceiver[] memory allreceivers = new GrantReceiver[](
@@ -172,10 +281,10 @@ contract EcoFilend is OwnerIsCreator {
         return (allreceivers);
     }
 
-    function getReceiverBalance(uint256 _id) public view returns (uint256) {
+    function getTotalReceived(uint256 _id) public view returns (uint256) {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[_id];
-        uint256 balance = grantReceiver.totalReceived;
-        return balance;
+        uint256 totalReceived = grantReceiver.totalReceived;
+        return totalReceived;
     }
 
     function stakeTokensForProject(
@@ -183,52 +292,48 @@ contract EcoFilend is OwnerIsCreator {
         uint256 _amount
     ) public payable {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+
         address staker = msg.sender;
-        uint256 insurance = (_amount * 10) / 100;
+        uint256 insurance = (_amount * 25) / 100;
         uint256 amount = _amount - insurance;
-        (bool callSuccess, ) = payable(grantReceiver.owner).call{value: amount}(
-            ""
-        );
+        (bool callSuccess, ) = payable(address(this)).call{value: _amount}("");
         require(callSuccess, "Call Failed");
+
+        transferTokens(grantReceiver.owner, amount);
+        projectInsurancePools[projectId] += insurance;
         grantReceiver.totalReceived += amount;
         projectStakes[projectId][staker] += amount;
-        contributeToInsurancePool(projectId, insurance);
-    }
-
-    // Function for stakeholders to contribute to a project's insurance pool
-    function contributeToInsurancePool(
-        uint256 projectId,
-        uint256 insurance
-    ) public payable {
-        // Update projectInsurancePools mapping with the contribution
-        projectInsurancePools[projectId] = insurance;
-        (bool callSuccess, ) = payable(address(this)).call{value: insurance}(
-            ""
-        );
-        require(callSuccess, "Call Failed");
     }
 
     // Function to trigger insurance payouts based on project conditions
     function triggerInsurancePayout(uint256 projectId) public {
-        require(
-            projectFailed[projectId],
-            "Project hasn't failed or met criteria"
-        );
+        // require(
+        //     projectFailed[projectId],
+        //     "Project hasn't failed or met criteria"
+        // );
+
         // Calculate payout based on stakes in the project's insurance pool
+        address staker = msg.sender;
         uint256 totalInsurance = projectInsurancePools[projectId];
-        uint256 totalStake = projectStakes[projectId][msg.sender];
-        uint256 payout = totalStake;
-
-        // Distribute the compensation to stakeholders
-        (bool callSuccess, ) = payable(msg.sender).call{value: payout}("");
-        require(callSuccess, "Call Failed");
-        //Updates Insurance and Stake
+        uint256 totalStake = projectStakes[projectId][staker];
+        uint256 payout = (totalStake * 25) / 100;
+        distributeInsurancePayout(staker, payout);
+        //Updates Insurance
         projectInsurancePools[projectId] = totalInsurance - payout;
-        projectStakes[projectId][msg.sender] = 0;
     }
 
-    // Function to update project status (e.g., if it fails to meet certain conditions)
-    function updateProjectStatus(uint256 projectId, bool isFailed) public {
-        projectFailed[projectId] = isFailed;
+    function distributeInsurancePayout(
+        address staker,
+        uint256 payout
+    ) internal {
+        // Distribute the compensation to stakeholders
+
+        (bool callSuccess, ) = payable(staker).call{value: payout}("");
+        require(callSuccess, "Call Failed");
     }
+
+    // Function to update project status +(e.g., if it fails to meet certain conditions)
+    // function updateProjectStatus(uint256 projectId, bool isFailed) public {
+    //     projectFailed[projectId] = isFailed;
+    // }
 }
