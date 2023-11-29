@@ -20,6 +20,7 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
 
     string source;
     FunctionsRequest.Location secretsLocation;
+    bytes encryptedSecretsReference;
     bytes[] bytesArgs;
     uint64 subscriptionId;
     uint32 callbackGasLimit;
@@ -51,13 +52,15 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         address _link,
         address _token,
         uint64 _destinationChainSelector,
+        address f_router,
         bytes32 _donId,
         string memory _source,
         FunctionsRequest.Location _secretsLocation,
+        bytes memory _encryptedSecretsReference,
         bytes[] memory _bytesArgs,
         uint64 _subscriptionId,
         uint32 _callbackGasLimit
-    ) FunctionsClient(_router) ConfirmedOwner(msg.sender) {
+    ) FunctionsClient(f_router) ConfirmedOwner(msg.sender) {
         router = IRouterClient(_router);
         linkToken = LinkTokenInterface(_link);
         LinkTokenInterface(_link).approve(_router, type(uint256).max);
@@ -66,6 +69,7 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         destinationChainSelector = _destinationChainSelector;
         source = _source;
         secretsLocation = _secretsLocation;
+        encryptedSecretsReference = _encryptedSecretsReference;
         bytesArgs = _bytesArgs;
         subscriptionId = _subscriptionId;
         callbackGasLimit = _callbackGasLimit;
