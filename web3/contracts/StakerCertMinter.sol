@@ -10,7 +10,7 @@ import {MyNFT} from "./MyNFT.sol";
  * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
-contract StakerCertMinter is CCIPReceiver {
+contract StakerCertM is CCIPReceiver {
     MyNFT nft;
 
     event MintCallSuccessfull();

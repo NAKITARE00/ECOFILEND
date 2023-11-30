@@ -39,7 +39,7 @@ const secrestUploadAndEncryption = async () => {
         version,
         success,
     } = await secretsManager.uploadEncryptedSecretsToDON({
-        encryptedSecretsHexstring: encryptedSecretsObj.encryptSecrets,
+        encryptedSecretsHexstring: encryptedSecretsObj.encryptedSecrets,
         gatewayUrls,
         slotId,
         minutesUntilExpiration
@@ -56,7 +56,7 @@ const secrestUploadAndEncryption = async () => {
     }
 
 };
-encryptAndUploadSecrets().catch(err => {
+secrestUploadAndEncryption().catch(err => {
     console.log("Error encrypting and uploading secrets:  ", err);
 });
 

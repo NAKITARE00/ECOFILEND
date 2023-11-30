@@ -14,7 +14,6 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
     //ChainLinkFunctionsSetup
     using FunctionsRequest for FunctionsRequest.Request;
     bytes32 public donId;
-    bytes32 public s_lastRequestId;
     bytes public s_lastResponse;
     bytes public s_lastError;
 
@@ -81,7 +80,9 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         donId = newDonId;
     }
 
-    function makeRequest(string[] memory args) internal {
+    function _sendRequest(
+        string[] memory args
+    ) internal returns (bytes32 requestId) {
         FunctionsRequest.Request memory req;
         req.initializeRequest(
             FunctionsRequest.Location.Inline,
@@ -97,12 +98,13 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
             req.setBytesArgs(bytesArgs);
         }
 
-        s_lastRequestId = _sendRequest(
+        requestId = _sendRequest(
             req.encodeCBOR(),
             subscriptionId,
             callbackGasLimit,
             donId
         );
+        return requestId;
     }
 
     function fulfillRequest(
@@ -112,6 +114,7 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
     ) internal override {
         s_lastResponse = response;
         s_lastError = err;
+        grantProcessor(requestId, response);
     }
 
     //CCIPFUNCTIONS
@@ -213,7 +216,11 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         string image;
         uint256 totalReceived;
         uint256 stakePower;
+        uint256 pollutionIndex;
     }
+
+    //Mapping of requestId to grantReceiver
+    mapping(bytes32 => GrantReceiver) public requests;
     // Mapping to track insurance funds per project
     mapping(uint256 => uint256) public projectInsurancePools;
 
@@ -253,24 +260,41 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         grantTracker[_receiveraddress] = grantReceiver;
     }
 
-    string[] locationData;
-
-    function grant(uint256 _projectId, uint256 _amount) public {
+    function grantRequest(uint256 _projectId) public {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
-        grantReceiver.totalReceived += _amount;
-
-        locationData.push(grantReceiver.city);
-        locationData.push(grantReceiver.state);
-        locationData.push(grantReceiver.country);
-        makeRequest(locationData);
-        transferTokens(grantReceiver.owner, _amount);
+        string[] memory args = new string[](3);
+        args[0] = grantReceiver.city;
+        args[1] = grantReceiver.state;
+        args[2] = grantReceiver.country;
+        bytes32 requestId = _sendRequest(args);
+        requests[requestId] = grantReceiver;
     }
 
-    function locationTracker(
-        string memory city,
-        string memory state,
-        string memory country
-    ) private {}
+    function grantProcessor(bytes32 requestId, bytes memory response) private {
+        string memory pollutionIndex = string(response);
+        (uint256 amount, bool istrue) = strToUint(pollutionIndex);
+        GrantReceiver memory grantReceiver = requests[requestId];
+        transferTokens(grantReceiver.owner, amount);
+        grantReceiver.totalReceived += amount;
+    }
+
+    function strToUint(
+        string memory _str
+    ) public pure returns (uint256 res, bool err) {
+        for (uint256 i = 0; i < bytes(_str).length; i++) {
+            if (
+                (uint8(bytes(_str)[i]) - 48) < 0 ||
+                (uint8(bytes(_str)[i]) - 48) > 9
+            ) {
+                return (0, false);
+            }
+            res +=
+                (uint8(bytes(_str)[i]) - 48) *
+                10 ** (bytes(_str).length - i - 1);
+        }
+
+        return (res, true);
+    }
 
     function getReceivers() public view returns (GrantReceiver[] memory) {
         GrantReceiver[] memory allreceivers = new GrantReceiver[](
