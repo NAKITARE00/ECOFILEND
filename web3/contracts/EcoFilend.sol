@@ -176,11 +176,13 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
             feeToken: address(linkToken)
         });
 
-        uint256 fee = IRouterClient(router).getFee(
+        uint256 fees = IRouterClient(router).getFee(
             destinationChainSelector,
             message
         );
 
+        if (fees > linkToken.balanceOf(address(this)))
+            revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
         bytes32 messageId;
 
         messageId = IRouterClient(router).ccipSend(
@@ -345,23 +347,8 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         uint256 totalInsurance = projectInsurancePools[projectId];
         uint256 totalStake = projectStakes[projectId][staker];
         uint256 payout = (totalStake * 25) / 100;
-        distributeInsurancePayout(staker, payout);
+        transferTokens(staker, payout);
         //Updates Insurance
         projectInsurancePools[projectId] = totalInsurance - payout;
     }
-
-    function distributeInsurancePayout(
-        address staker,
-        uint256 payout
-    ) internal {
-        // Distribute the compensation to stakeholders
-
-        (bool callSuccess, ) = payable(staker).call{value: payout}("");
-        require(callSuccess, "Call Failed");
-    }
-
-    // Function to update project status +(e.g., if it fails to meet certain conditions)
-    // function updateProjectStatus(uint256 projectId, bool isFailed) public {
-    //     projectFailed[projectId] = isFailed;
-    // }
 }

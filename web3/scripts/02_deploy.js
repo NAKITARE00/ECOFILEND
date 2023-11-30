@@ -1,11 +1,12 @@
-const { abi, bytecode } = require("../artifacts/contracts/EcoFilend.json");
+const { abi, bytecode } = require("../artifacts-zk/contracts/EcoFilend.sol/EcoFilend.json");
 const { wallet, signer } = require("../connection.js");
 const { networks } = require("../networks.js");
 const { ContractFactory, utils } = require("ethers");
 const { Location } = require("@chainlink/functions-toolkit");
+const fs = require("fs");
+const path = require("path");
 
-const NETWORK = avalancheFuji;
-
+const NETWORK = "avalancheFuji";
 
 const ccip_router = "0x554472a2720e5e7d5d3c817529aba05eed5f82d8";
 const linkAddress = "0x0b9d5D9136855f6FEc3c0993feE6E9CE8a297846";
@@ -17,7 +18,7 @@ const source = fs
     .readFileSync(path.resolve(__dirname, "../source.js"))
     .toString();
 const secretsLocation = Location.DONHosted;
-const encryptedSecretsReference = "";
+const encryptedSecretsReference = "0xa266736c6f744964006776657273696f6e1a6568e7a0";
 const subscriptionId = "1525";
 const callbackGasLimit = 300_000;
 const deployEcoFilend = async () => {

@@ -1,6 +1,4 @@
 const { SecretsManager } = require("@chainlink/functions-toolkit");
-const fs = require("fs");
-const path = require("path");
 
 const { signer } = require("../connection.js");
 const { networks } = require("../networks.js");

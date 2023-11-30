@@ -3,7 +3,7 @@ require("@chainlink/env-enc").config();
 
 const { providers, Wallet } = require("ethers");
 
-const RPC_URL = process.env.RPC_URL;
+const RPC_URL = process.env.AVALANCHE_FUJI_RPC;
 
 if (!RPC_URL) {
     throw new Error("Please set the RPC_URL environment variable");
