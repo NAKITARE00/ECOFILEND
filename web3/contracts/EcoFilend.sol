@@ -223,11 +223,14 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
 
     //Mapping of requestId to grantReceiver
     mapping(bytes32 => GrantReceiver) public requests;
+    //This is the quota that is awarded per unit difference of the previous pollution index
+    uint256 grantQuota = 1000000000000000;
     // Mapping to track insurance funds per project
     mapping(uint256 => uint256) public projectInsurancePools;
 
     // Define conditions for insurance payout per project
     // mapping(uint256 => bool) public projectFailed;
+    event grantSuccess(string project);
 
     mapping(uint256 => mapping(address => uint256)) public projectStakes;
 
@@ -272,17 +275,24 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         requests[requestId] = grantReceiver;
     }
 
-    function grantProcessor(bytes32 requestId, bytes memory response) private {
+    function grantProcessor(bytes32 requestId, bytes memory response) internal {
         string memory pollutionIndex = string(response);
-        (uint256 amount, bool istrue) = strToUint(pollutionIndex);
+        (uint256 index, bool istrue) = strToUint(pollutionIndex);
         GrantReceiver memory grantReceiver = requests[requestId];
-        transferTokens(grantReceiver.owner, amount);
-        grantReceiver.totalReceived += amount;
+        uint256 currentIndex = grantReceiver.pollutionIndex;
+        if (index < currentIndex) {
+            uint256 amount = (currentIndex - index) * grantQuota;
+            transferTokens(grantReceiver.owner, amount);
+            grantReceiver.totalReceived += amount;
+            grantReceiver.pollutionIndex = index;
+        }
+
+        emit grantSuccess(grantReceiver.name);
     }
 
     function strToUint(
         string memory _str
-    ) public pure returns (uint256 res, bool err) {
+    ) internal pure returns (uint256 res, bool err) {
         for (uint256 i = 0; i < bytes(_str).length; i++) {
             if (
                 (uint8(bytes(_str)[i]) - 48) < 0 ||
