@@ -1,6 +1,7 @@
 node_modules
 .env
 .env.enc
+source.js
 coverage
 coverage.json
 typechain

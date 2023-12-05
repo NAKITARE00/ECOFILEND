@@ -31,7 +31,7 @@ const secrestUploadAndEncryption = async () => {
 
     const gatewayUrls = networks[NETWORK].gatewayUrls;
     const slotId = 0;
-    const minutesUntilExpiration = 75;
+    const minutesUntilExpiration = 2880;
 
     const {
         version,
@@ -50,7 +50,7 @@ const secrestUploadAndEncryption = async () => {
             version
         })
 
-        console.log(`\nMake a note of the encryptedSecretsReference: ${encryptedSecretsReference} `)
+        console.log(`\nMake a note of the encryptedSecretsReference: ${encryptedSecretsReference}, version: ${version} `)
     }
 
 };

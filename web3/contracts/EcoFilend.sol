@@ -10,7 +10,7 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 
-contract EcoFilend is FunctionsClient, ConfirmedOwner {
+contract EcoFilend is FunctionsClient, OwnerIsCreator {
     //ChainLinkFunctionsSetup
     using FunctionsRequest for FunctionsRequest.Request;
     bytes32 public donId;
@@ -23,27 +23,26 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
     bytes[] bytesArgs;
     uint64 subscriptionId;
     uint32 callbackGasLimit;
+    mapping(uint256 => bytes32) public projectToResponse;
 
     //CCIPSETUP
     IRouterClient router;
     LinkTokenInterface linkToken;
     uint64 destinationChainSelector;
     address token;
-
+    address stakeCertMinter;
     mapping(uint64 => bool) public whitelistedChains;
-
     error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
     error DestinationChainNotWhitelisted(uint64 destinationChainSelector);
     error NothingToWithdraw();
-
     event TokensTransferred(
-        bytes32 indexed messageId, // The unique ID of the message.
-        uint64 indexed destinationChainSelector, // The chain selector of the destination chain.
-        address receiver, // The address of the receiver on the destination chain.
-        address token, // The token address that was transferred.
-        uint256 tokenAmount, // The token amount that was transferred.
-        address feeToken, // the token address used to pay CCIP fees.
-        uint256 fees // The fees paid for sending the message.
+        bytes32 indexed messageId,
+        uint64 indexed destinationChainSelector,
+        address receiver,
+        address token,
+        uint256 tokenAmount,
+        address feeToken,
+        uint256 fees
     );
 
     constructor(
@@ -52,58 +51,48 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         address _token,
         uint64 _destinationChainSelector,
         address f_router,
-        bytes32 _donId,
         string memory _source,
-        FunctionsRequest.Location _secretsLocation,
         bytes memory _encryptedSecretsReference,
         bytes[] memory _bytesArgs,
         uint64 _subscriptionId,
-        uint32 _callbackGasLimit
-    ) FunctionsClient(f_router) ConfirmedOwner(msg.sender) {
+        address _stakeCertMinter
+    ) FunctionsClient(f_router) {
         router = IRouterClient(_router);
         linkToken = LinkTokenInterface(_link);
         LinkTokenInterface(_link).approve(_router, type(uint256).max);
-        donId = _donId;
         token = _token;
         destinationChainSelector = _destinationChainSelector;
         source = _source;
-        secretsLocation = _secretsLocation;
+        donId = "fun-avalanche-fuji-1";
+        secretsLocation = FunctionsRequest.Location.DONHosted;
+        callbackGasLimit = 300000;
         encryptedSecretsReference = _encryptedSecretsReference;
         bytesArgs = _bytesArgs;
         subscriptionId = _subscriptionId;
-        callbackGasLimit = _callbackGasLimit;
+        stakeCertMinter = _stakeCertMinter;
     }
 
     //CHAINLINKFUNCTIONS
 
-    function setDonId(bytes32 newDonId) external onlyOwner {
-        donId = newDonId;
-    }
-
     function _sendRequest(
-        string[] memory args
-    ) internal returns (bytes32 requestId) {
+        uint256 _projectId
+    ) public returns (bytes32 requestId) {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
+        string[] memory args = new string[](3);
+        args[0] = grantReceiver.city;
+        args[1] = grantReceiver.state;
+        args[2] = grantReceiver.country;
         FunctionsRequest.Request memory req;
-        req.initializeRequest(
-            FunctionsRequest.Location.Inline,
-            FunctionsRequest.CodeLanguage.JavaScript,
-            source
-        );
-
-        if (args.length > 0) {
-            req.setArgs(args);
-        }
-
-        if (bytesArgs.length > 0) {
-            req.setBytesArgs(bytesArgs);
-        }
-
+        req.setArgs(args);
+        req.initializeRequestForInlineJavaScript(source);
         requestId = _sendRequest(
             req.encodeCBOR(),
             subscriptionId,
             callbackGasLimit,
             donId
         );
+        requests[requestId] = grantReceiver;
+        grantReceiver.latestReqId = requestId;
         return requestId;
     }
 
@@ -114,63 +103,103 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
     ) internal override {
         s_lastResponse = response;
         s_lastError = err;
-        grantProcessor(requestId, response);
     }
 
     //CCIPFUNCTIONS
-    function transferTokens(
+    mapping(uint64 => bool) public allowlistedChains;
+    error DestinationChainNotAllowlisted(uint64 destinationChainSelector); // Used when the destination chain has not been allowlisted by the contract owner.
+
+    modifier onlyAllowlistedChain(uint64 _destinationChainSelector) {
+        if (!allowlistedChains[_destinationChainSelector])
+            revert DestinationChainNotAllowlisted(_destinationChainSelector);
+        _;
+    }
+
+    function allowlistDestinationChain(
+        uint64 _destinationChainSelector,
+        bool allowed
+    ) external onlyOwner {
+        allowlistedChains[_destinationChainSelector] = allowed;
+    }
+
+    function transferTokensPayLINK(
+        uint256 projectId,
+        uint64 _destinationChainSelector,
         address _receiver,
         uint256 _amount
-    ) internal returns (bytes32 messageId) {
-        Client.EVMTokenAmount[]
-            memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        Client.EVMTokenAmount memory tokenAmount = Client.EVMTokenAmount({
-            token: token,
-            amount: _amount
-        });
-        tokenAmounts[0] = tokenAmount;
+    )
+        public
+        onlyOwner
+        onlyAllowlistedChain(_destinationChainSelector)
+        returns (bytes32 messageId)
+    {
+        Client.EVM2AnyMessage memory evm2AnyMessage = _buildCCIPMessage(
+            _receiver,
+            token,
+            _amount,
+            address(linkToken)
+        );
 
-        // Build the CCIP Message
-        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(_receiver),
-            data: "",
-            tokenAmounts: tokenAmounts,
-            extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV1({gasLimit: 0, strict: false})
-            ),
-            feeToken: address(linkToken)
-        });
-
-        // CCIP Fees Management
-        uint256 fees = router.getFee(destinationChainSelector, message);
+        uint256 fees = router.getFee(_destinationChainSelector, evm2AnyMessage);
 
         if (fees > linkToken.balanceOf(address(this)))
             revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
 
-        // Approve Router to spend CCIP-BnM tokens we send
+        linkToken.approve(address(router), fees);
+
         IERC20(token).approve(address(router), _amount);
 
-        // Send CCIP Message
-        messageId = router.ccipSend(destinationChainSelector, message);
+        messageId = router.ccipSend(_destinationChainSelector, evm2AnyMessage);
 
         emit TokensTransferred(
             messageId,
-            destinationChainSelector,
+            _destinationChainSelector,
             _receiver,
             token,
             _amount,
             address(linkToken),
             fees
         );
+
+        return messageId;
+    }
+
+    function _buildCCIPMessage(
+        address _receiver,
+        address _token,
+        uint256 _amount,
+        address _feeTokenAddress
+    ) internal pure returns (Client.EVM2AnyMessage memory) {
+        // Set the token amounts
+        Client.EVMTokenAmount[]
+            memory tokenAmounts = new Client.EVMTokenAmount[](1);
+        tokenAmounts[0] = Client.EVMTokenAmount({
+            token: _token,
+            amount: _amount
+        });
+
+        // Create an EVM2AnyMessage struct in memory with necessary information for sending a cross-chain message
+        return
+            Client.EVM2AnyMessage({
+                receiver: abi.encode(_receiver), // ABI-encoded receiver address
+                data: "", // No data
+                tokenAmounts: tokenAmounts, // The amount and type of token being transferred
+                extraArgs: Client._argsToBytes(
+                    // Additional arguments, setting gas limit to 0 as we are not sending any data and non-strict sequencing mode
+                    Client.EVMExtraArgsV1({gasLimit: 0, strict: false})
+                ),
+                // Set the feeToken to a feeTokenAddress, indicating specific asset will be used for fees
+                feeToken: _feeTokenAddress
+            });
     }
 
     //mints CROSSCHAIN NFT (Staking Certificate)
     event MessageSent(bytes32 messageId);
 
-    function mint(address receiver) internal {
+    function mint(address receiver, address staker) internal {
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(receiver),
-            data: abi.encodeWithSignature("mint(address)", msg.sender),
+            data: abi.encodeWithSignature("mint(address)", staker),
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: "",
             feeToken: address(linkToken)
@@ -219,6 +248,8 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         uint256 totalReceived;
         uint256 stakePower;
         uint256 pollutionIndex;
+        uint256 oldpollutionIndex;
+        bytes32 latestReqId;
     }
 
     //Mapping of requestId to grantReceiver
@@ -233,9 +264,6 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
     event grantSuccess(string project);
 
     mapping(uint256 => mapping(address => uint256)) public projectStakes;
-
-    mapping(string => GrantReceiver) public grantreceivers;
-    mapping(address => GrantReceiver) public grantTracker;
     mapping(uint256 => GrantReceiver) public grantreceiversdisplay;
     uint256 public numberOfReceivers;
     uint256 id;
@@ -250,62 +278,27 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         string memory _state,
         string memory _country,
         string memory _image
-    ) private {
-        GrantReceiver memory grantReceiver;
-        id++;
-        grantReceiver.projectId = id;
-        grantReceiver.name = _name;
-        grantReceiver.owner = _receiveraddress;
-        grantReceiver.city = _city;
-        grantReceiver.state = _state;
-        grantReceiver.country = _country;
-        grantReceiver.image = _image;
-        grantreceivers[_name] = grantReceiver;
-        grantreceiversdisplay[id] = grantReceiver;
-        grantTracker[_receiveraddress] = grantReceiver;
+    ) public {
+        GrantReceiver storage grantReceiverCreate = grantreceiversdisplay[
+            numberOfReceivers
+        ];
+        grantReceiverCreate.projectId = numberOfReceivers++;
+        grantReceiverCreate.name = _name;
+        grantReceiverCreate.owner = _receiveraddress;
+        grantReceiverCreate.city = _city;
+        grantReceiverCreate.state = _state;
+        grantReceiverCreate.country = _country;
+        grantReceiverCreate.image = _image;
+        grantreceiversdisplay[id] = grantReceiverCreate;
     }
 
-    function grantRequest(uint256 _projectId) public {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
-        string[] memory args = new string[](3);
-        args[0] = grantReceiver.city;
-        args[1] = grantReceiver.state;
-        args[2] = grantReceiver.country;
-        bytes32 requestId = _sendRequest(args);
-        requests[requestId] = grantReceiver;
-    }
-
-    function grantProcessor(bytes32 requestId, bytes memory response) internal {
-        string memory pollutionIndex = string(response);
-        (uint256 index, bool istrue) = strToUint(pollutionIndex);
-        GrantReceiver memory grantReceiver = requests[requestId];
-        uint256 currentIndex = grantReceiver.pollutionIndex;
-        if (index < currentIndex) {
-            uint256 amount = (currentIndex - index) * grantQuota;
-            transferTokens(grantReceiver.owner, amount);
-            grantReceiver.totalReceived += amount;
-            grantReceiver.pollutionIndex = index;
-        }
-
-        emit grantSuccess(grantReceiver.name);
-    }
-
-    function strToUint(
-        string memory _str
-    ) internal pure returns (uint256 res, bool err) {
-        for (uint256 i = 0; i < bytes(_str).length; i++) {
-            if (
-                (uint8(bytes(_str)[i]) - 48) < 0 ||
-                (uint8(bytes(_str)[i]) - 48) > 9
-            ) {
-                return (0, false);
-            }
-            res +=
-                (uint8(bytes(_str)[i]) - 48) *
-                10 ** (bytes(_str).length - i - 1);
-        }
-
-        return (res, true);
+    function _processResponse(
+        uint256 projectId
+    ) public view returns (uint256 index) {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+        grantReceiver.oldpollutionIndex = grantReceiver.pollutionIndex;
+        grantReceiver.pollutionIndex = abi.decode(s_lastResponse, (uint256));
+        return grantReceiver.pollutionIndex;
     }
 
     function getReceivers() public view returns (GrantReceiver[] memory) {
@@ -317,7 +310,6 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
             GrantReceiver storage item = grantreceiversdisplay[i];
             allreceivers[i] = item;
         }
-
         return (allreceivers);
     }
 
@@ -339,7 +331,13 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         (bool callSuccess, ) = payable(address(this)).call{value: _amount}("");
         require(callSuccess, "Call Failed");
 
-        transferTokens(grantReceiver.owner, amount);
+        transferTokensPayLINK(
+            projectId,
+            destinationChainSelector,
+            grantReceiver.owner,
+            _amount
+        );
+        mint(stakeCertMinter, staker);
         projectInsurancePools[projectId] += insurance;
         grantReceiver.totalReceived += amount;
         projectStakes[projectId][staker] += amount;
@@ -351,13 +349,17 @@ contract EcoFilend is FunctionsClient, ConfirmedOwner {
         //     projectFailed[projectId],
         //     "Project hasn't failed or met criteria"
         // );
-
         // Calculate payout based on stakes in the project's insurance pool
         address staker = msg.sender;
         uint256 totalInsurance = projectInsurancePools[projectId];
         uint256 totalStake = projectStakes[projectId][staker];
         uint256 payout = (totalStake * 25) / 100;
-        transferTokens(staker, payout);
+        transferTokensPayLINK(
+            projectId,
+            destinationChainSelector,
+            staker,
+            payout
+        );
         //Updates Insurance
         projectInsurancePools[projectId] = totalInsurance - payout;
     }
