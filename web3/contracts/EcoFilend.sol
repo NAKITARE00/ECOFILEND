@@ -7,7 +7,6 @@ import {Client} from "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.s
 import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/token/ERC20/IERC20.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
-import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 
 contract EcoFilend is FunctionsClient, OwnerIsCreator {
@@ -26,6 +25,8 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     mapping(uint256 => bytes32) public projectToResponse;
 
     //CCIPSETUP
+    address c_router;
+    address c_link;
     IRouterClient router;
     LinkTokenInterface linkToken;
     uint64 destinationChainSelector;
@@ -57,9 +58,11 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         uint64 _subscriptionId,
         address _stakeCertMinter
     ) FunctionsClient(f_router) {
+        c_router = _router;
+        c_link = _link;
+        LinkTokenInterface(_link).approve(_router, type(uint256).max);
         router = IRouterClient(_router);
         linkToken = LinkTokenInterface(_link);
-        LinkTokenInterface(_link).approve(_router, type(uint256).max);
         token = _token;
         destinationChainSelector = _destinationChainSelector;
         source = _source;
@@ -72,8 +75,62 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         stakeCertMinter = _stakeCertMinter;
     }
 
-    //CHAINLINKFUNCTIONS
+    receive() external payable {}
 
+    //ECOFILENDSETUP
+
+    struct GrantReceiver {
+        address owner;
+        string name;
+        uint256 projectId;
+        string city;
+        string state;
+        string country;
+        string image;
+        uint256 totalReceived;
+        uint256 stakePower;
+        uint256 pollutionIndex;
+        uint256 oldpollutionIndex;
+        bytes32 latestReqId;
+    }
+
+    //Mapping of requestId to grantReceiver
+    mapping(bytes32 => GrantReceiver) public requests;
+    //This is the quota that is awarded per unit difference of the previous pollution index
+    uint256 grantQuota = 1000000000000000;
+
+    event grantSuccess(string project);
+
+    mapping(uint256 => mapping(address => uint256)) public projectStakes;
+    mapping(uint256 => GrantReceiver) public grantreceiversdisplay;
+    uint256 public numberOfReceivers;
+    uint256 id;
+    struct granteesList {
+        string name;
+    }
+
+    function register(
+        string memory _name,
+        address _receiveraddress,
+        string memory _city,
+        string memory _state,
+        string memory _country,
+        string memory _image
+    ) public {
+        GrantReceiver storage grantReceiverCreate = grantreceiversdisplay[
+            numberOfReceivers
+        ];
+        grantReceiverCreate.projectId = numberOfReceivers++;
+        grantReceiverCreate.name = _name;
+        grantReceiverCreate.owner = _receiveraddress;
+        grantReceiverCreate.city = _city;
+        grantReceiverCreate.state = _state;
+        grantReceiverCreate.country = _country;
+        grantReceiverCreate.image = _image;
+        grantreceiversdisplay[id] = grantReceiverCreate;
+    }
+
+    //CHAINLINKFUNCTIONS
     function _sendRequest(
         uint256 _projectId
     ) public returns (bytes32 requestId) {
@@ -103,6 +160,15 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     ) internal override {
         s_lastResponse = response;
         s_lastError = err;
+    }
+
+    function _processResponse(
+        uint256 projectId
+    ) public view returns (uint256 index) {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+        grantReceiver.oldpollutionIndex = grantReceiver.pollutionIndex;
+        grantReceiver.pollutionIndex = abi.decode(s_lastResponse, (uint256));
+        return grantReceiver.pollutionIndex;
     }
 
     //CCIPFUNCTIONS
@@ -193,35 +259,6 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
             });
     }
 
-    //mints CROSSCHAIN NFT (Staking Certificate)
-    event MessageSent(bytes32 messageId);
-
-    function mint(address receiver, address staker) internal {
-        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(receiver),
-            data: abi.encodeWithSignature("mint(address)", staker),
-            tokenAmounts: new Client.EVMTokenAmount[](0),
-            extraArgs: "",
-            feeToken: address(linkToken)
-        });
-
-        uint256 fees = IRouterClient(router).getFee(
-            destinationChainSelector,
-            message
-        );
-
-        if (fees > linkToken.balanceOf(address(this)))
-            revert NotEnoughBalance(linkToken.balanceOf(address(this)), fees);
-        bytes32 messageId;
-
-        messageId = IRouterClient(router).ccipSend(
-            destinationChainSelector,
-            message
-        );
-
-        emit MessageSent(messageId);
-    }
-
     function withdrawToken(
         address _beneficiary,
         address _token
@@ -233,72 +270,42 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         IERC20(_token).transfer(_beneficiary, amount);
     }
 
-    receive() external payable {}
-
-    //ECOFILENDSETUP
-
-    struct GrantReceiver {
-        address owner;
-        string name;
-        uint256 projectId;
-        string city;
-        string state;
-        string country;
-        string image;
-        uint256 totalReceived;
-        uint256 stakePower;
-        uint256 pollutionIndex;
-        uint256 oldpollutionIndex;
-        bytes32 latestReqId;
-    }
-
-    //Mapping of requestId to grantReceiver
-    mapping(bytes32 => GrantReceiver) public requests;
-    //This is the quota that is awarded per unit difference of the previous pollution index
-    uint256 grantQuota = 1000000000000000;
-    // Mapping to track insurance funds per project
-    mapping(uint256 => uint256) public projectInsurancePools;
-
-    // Define conditions for insurance payout per project
-    // mapping(uint256 => bool) public projectFailed;
-    event grantSuccess(string project);
-
-    mapping(uint256 => mapping(address => uint256)) public projectStakes;
-    mapping(uint256 => GrantReceiver) public grantreceiversdisplay;
-    uint256 public numberOfReceivers;
-    uint256 id;
-    struct granteesList {
-        string name;
-    }
-
-    function register(
-        string memory _name,
-        address _receiveraddress,
-        string memory _city,
-        string memory _state,
-        string memory _country,
-        string memory _image
-    ) public {
-        GrantReceiver storage grantReceiverCreate = grantreceiversdisplay[
-            numberOfReceivers
-        ];
-        grantReceiverCreate.projectId = numberOfReceivers++;
-        grantReceiverCreate.name = _name;
-        grantReceiverCreate.owner = _receiveraddress;
-        grantReceiverCreate.city = _city;
-        grantReceiverCreate.state = _state;
-        grantReceiverCreate.country = _country;
-        grantReceiverCreate.image = _image;
-        grantreceiversdisplay[id] = grantReceiverCreate;
-    }
-
-    function _processResponse(
-        uint256 projectId
-    ) public view returns (uint256 index) {
+    function stakeTokensForProject(uint256 projectId) public payable {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
-        grantReceiver.oldpollutionIndex = grantReceiver.pollutionIndex;
-        grantReceiver.pollutionIndex = abi.decode(s_lastResponse, (uint256));
-        return grantReceiver.pollutionIndex;
+
+        address staker = msg.sender;
+        (bool callSuccess, ) = payable(grantReceiver.owner).call{
+            value: msg.value
+        }("");
+        require(callSuccess, "Call failed");
+        grantReceiver.stakePower += msg.value;
+        projectStakes[projectId][staker] += msg.value;
+    }
+
+    //mints CROSSCHAIN NFT (Staking Certificate)
+    event MessageSent(bytes32 messageId);
+
+    function mint(uint256 projectId) public returns (bytes32) {
+        require(projectStakes[projectId][msg.sender] > 0, "No Stakes Made");
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            receiver: abi.encode(stakeCertMinter),
+            data: abi.encodeWithSignature("mint(address)", msg.sender),
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            extraArgs: Client._argsToBytes(
+                Client.EVMExtraArgsV1({gasLimit: 200_000, strict: false})
+            ),
+            feeToken: c_link
+        });
+
+        bytes32 messageId;
+
+        messageId = IRouterClient(c_router).ccipSend(
+            destinationChainSelector,
+            message
+        );
+
+        emit MessageSent(messageId);
+        return messageId;
     }
 
     function getReceivers() public view returns (GrantReceiver[] memory) {
@@ -317,50 +324,5 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         GrantReceiver memory grantReceiver = grantreceiversdisplay[_id];
         uint256 totalReceived = grantReceiver.totalReceived;
         return totalReceived;
-    }
-
-    function stakeTokensForProject(
-        uint256 projectId,
-        uint256 _amount
-    ) public payable {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
-
-        address staker = msg.sender;
-        uint256 insurance = (_amount * 25) / 100;
-        uint256 amount = _amount - insurance;
-        (bool callSuccess, ) = payable(address(this)).call{value: _amount}("");
-        require(callSuccess, "Call Failed");
-
-        transferTokensPayLINK(
-            projectId,
-            destinationChainSelector,
-            grantReceiver.owner,
-            _amount
-        );
-        mint(stakeCertMinter, staker);
-        projectInsurancePools[projectId] += insurance;
-        grantReceiver.totalReceived += amount;
-        projectStakes[projectId][staker] += amount;
-    }
-
-    // Function to trigger insurance payouts based on project conditions
-    function triggerInsurancePayout(uint256 projectId) public {
-        // require(
-        //     projectFailed[projectId],
-        //     "Project hasn't failed or met criteria"
-        // );
-        // Calculate payout based on stakes in the project's insurance pool
-        address staker = msg.sender;
-        uint256 totalInsurance = projectInsurancePools[projectId];
-        uint256 totalStake = projectStakes[projectId][staker];
-        uint256 payout = (totalStake * 25) / 100;
-        transferTokensPayLINK(
-            projectId,
-            destinationChainSelector,
-            staker,
-            payout
-        );
-        //Updates Insurance
-        projectInsurancePools[projectId] = totalInsurance - payout;
     }
 }

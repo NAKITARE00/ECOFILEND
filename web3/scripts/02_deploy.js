@@ -18,7 +18,7 @@ const source = fs
     .toString();
 const encryptedSecretsReference = "0xa266736c6f744964006776657273696f6e1a656c3691";
 const subscriptionId = "1525";
-const stakeCertMinter = "0xBF9922e54E877aA16644A2c6bcc5467435b1DaF4";
+const stakeCertMinter = "0x1FF263E7Ce2d42384Da9996173C258277cF82464";
 const deployEcoFilend = async () => {
     const contractFactory = new ContractFactory(abi, bytecode, wallet);
 
