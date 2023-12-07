@@ -2,19 +2,19 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from "uuid";
 import { loader } from '../assets';
-import { ElectionCard } from './'
+import { GrantCard } from './';
 
-const DisplayElections = ({ title, isLoading, elections }) => {
+const DisplayReceivers = ({ title, isLoading, receivers }) => {
     const navigate = useNavigate();
-    const handleNavigate = (election) => {
-        navigate(`/election-details/${election.electionName}`,
-            { state: election })
+    const handleNavigate = (receiver) => {
+        navigate(`/grant-details/${receiver.name}`,
+            { state: receiver })
     }
     return (
         <div>
             <h1 className="font-epilogue font-semibold text-[18px]
             text-white text-left">
-                {title} ({elections.length})
+                {title} ({receivers.length})
             </h1>
 
             <div className="flex flex-wrap mt-[20px] gap-[26px]">
@@ -24,22 +24,22 @@ const DisplayElections = ({ title, isLoading, elections }) => {
                     />
                 )}
 
-                {!isLoading && elections.length === 0 && (
+                {!isLoading && receivers.length === 0 && (
                     <p className="font-epilogue font-semibold text-[14px
                     leading-[30px] text-[#818183]">
-                        No Elections Made
+                        No Grants To Display
                     </p>
                 )}
 
-                {!isLoading && elections.length > 0 && elections.map
-                    ((election) => (<ElectionCard
+                {!isLoading && receivers.length > 0 && receivers.map
+                    ((receiver) => (<GrantCard
                         key={uuidv4()}
-                        {...election}
-                        handleClick={() => handleNavigate(election)}
+                        {...receiver}
+                        handleClick={() => handleNavigate(receiver)}
                     />))}
             </div>
         </div>
     )
 }
 
-export default DisplayElections
+export default DisplayReceivers

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-import { tipper } from '../assets';
+import { tipper, menu } from '../assets';
 import { navlinks } from '../constants';
 
 const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
@@ -18,14 +17,15 @@ const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
 const Sidebar = () => {
     const navigate = useNavigate();
     const [isActive, setIsActive] = useState('dashboard');
+    const [toggleDrawer, setToggleDrawer] = useState(false);
 
     return (
-        <div className="flex justify-between items-center flex-col sticky top-4 h-[80vh]">
+        <div className="flex justify-between items-center bg-[#1dc071] flex-col sticky top-4 h-[full]">
             <Link to="/">
                 <Icon styles="w-[72px] h-[58px] bg-[]" imgUrl={tipper} />
             </Link>
 
-            <div className="  flex-1 flex flex-col justify-between items-center bg-[#1c1c24] rounded-[20px] w-[76px] py-4 mt-12">
+            <div className="  flex-1 flex flex-col justify-between items-center bg-[#1dc071] rounded-[20px] w-[76px] py-4 mt-12">
                 <div className="my-[105px] flex flex-col justify-center items-center gap-3">
                     {navlinks.map((link) => (
                         <Icon

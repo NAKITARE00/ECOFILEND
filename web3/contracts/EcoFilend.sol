@@ -97,14 +97,13 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     //Mapping of requestId to grantReceiver
     mapping(bytes32 => GrantReceiver) public requests;
     //This is the quota that is awarded per unit difference of the previous pollution index
-    uint256 grantQuota = 1000000000000000;
+    uint256 grantQuota = 10000000000000;
 
     event grantSuccess(string project);
 
     mapping(uint256 => mapping(address => uint256)) public projectStakes;
     mapping(uint256 => GrantReceiver) public grantreceiversdisplay;
     uint256 public numberOfReceivers;
-    uint256 id;
     struct granteesList {
         string name;
     }
@@ -117,24 +116,25 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         string memory _country,
         string memory _image
     ) public {
+        uint256 currentReceiverIndex = numberOfReceivers + 1;
         GrantReceiver storage grantReceiverCreate = grantreceiversdisplay[
-            numberOfReceivers
+            currentReceiverIndex
         ];
-        grantReceiverCreate.projectId = numberOfReceivers++;
+        grantReceiverCreate.projectId = currentReceiverIndex;
         grantReceiverCreate.name = _name;
         grantReceiverCreate.owner = _receiveraddress;
         grantReceiverCreate.city = _city;
         grantReceiverCreate.state = _state;
         grantReceiverCreate.country = _country;
         grantReceiverCreate.image = _image;
-        grantreceiversdisplay[id] = grantReceiverCreate;
+        numberOfReceivers = currentReceiverIndex;
     }
 
     //CHAINLINKFUNCTIONS
     function _sendRequest(
         uint256 _projectId
     ) public returns (bytes32 requestId) {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[_projectId];
+        GrantReceiver storage grantReceiver = grantreceiversdisplay[_projectId];
         string[] memory args = new string[](3);
         args[0] = grantReceiver.city;
         args[1] = grantReceiver.state;
@@ -164,10 +164,13 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
 
     function _processResponse(
         uint256 projectId
-    ) public view returns (uint256 index) {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+    ) public returns (uint256 index) {
+        GrantReceiver storage grantReceiver = grantreceiversdisplay[projectId];
         grantReceiver.oldpollutionIndex = grantReceiver.pollutionIndex;
         grantReceiver.pollutionIndex = abi.decode(s_lastResponse, (uint256));
+        uint256 amount = (grantReceiver.pollutionIndex -
+            grantReceiver.oldpollutionIndex) * grantQuota;
+        transferTokensPayLINK(projectId, destinationChainSelector, grantQuota);
         return grantReceiver.pollutionIndex;
     }
 
@@ -191,7 +194,6 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     function transferTokensPayLINK(
         uint256 projectId,
         uint64 _destinationChainSelector,
-        address _receiver,
         uint256 _amount
     )
         public
@@ -199,8 +201,9 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         onlyAllowlistedChain(_destinationChainSelector)
         returns (bytes32 messageId)
     {
+        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
         Client.EVM2AnyMessage memory evm2AnyMessage = _buildCCIPMessage(
-            _receiver,
+            grantReceiver.owner,
             token,
             _amount,
             address(linkToken)
@@ -216,11 +219,12 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         IERC20(token).approve(address(router), _amount);
 
         messageId = router.ccipSend(_destinationChainSelector, evm2AnyMessage);
+        grantReceiver.totalReceived += _amount;
 
         emit TokensTransferred(
             messageId,
             _destinationChainSelector,
-            _receiver,
+            grantReceiver.owner,
             token,
             _amount,
             address(linkToken),
@@ -271,7 +275,7 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     }
 
     function stakeTokensForProject(uint256 projectId) public payable {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+        GrantReceiver storage grantReceiver = grantreceiversdisplay[projectId];
 
         address staker = msg.sender;
         (bool callSuccess, ) = payable(grantReceiver.owner).call{
@@ -312,12 +316,11 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         GrantReceiver[] memory allreceivers = new GrantReceiver[](
             numberOfReceivers
         );
-
-        for (uint i = 0; i < numberOfReceivers; i++) {
+        for (uint i = 1; i <= numberOfReceivers; i++) {
             GrantReceiver storage item = grantreceiversdisplay[i];
-            allreceivers[i] = item;
+            allreceivers[i - 1] = item;
         }
-        return (allreceivers);
+        return allreceivers;
     }
 
     function getTotalReceived(uint256 _id) public view returns (uint256) {

@@ -1,8 +1,7 @@
 import React from 'react'
-import { tagType, thirdweb } from '../assets';
+import { tagType } from '../assets';
 
-
-const ElectionCard = ({ electionName, voteToken, image, handleClick }) => {
+const GrantCard = ({ name, image, handleClick }) => {
     return (
         <div className="sm:w-[288px] w-full rounded=[15px]
         bg-[#1c1c24] cursor-pointer" onClick={handleClick}>
@@ -18,11 +17,11 @@ const ElectionCard = ({ electionName, voteToken, image, handleClick }) => {
                    h-[17px] object-contain"/>
                 </div>
                 <div className="block">
-                    <h3 className="font-epilogue font-semibold text-[16px] text-white text-left leading-[26px] truncate">{electionName}</h3>
+                    <h3 className="font-epilogue font-semibold text-[16px] text-white text-left leading-[26px] truncate">{name}</h3>
                 </div>
             </div>
         </div>
     )
 }
 
-export default ElectionCard
+export default GrantCard;

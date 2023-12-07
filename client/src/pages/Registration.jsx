@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { ethers } from 'ethers';
 import { useStateContext } from '../context';
 
 import { CustomButton } from '../components';
@@ -77,7 +76,6 @@ const Registration = () => {
                     />
                 </div>
             </div>
-
         </div >
     );
 };

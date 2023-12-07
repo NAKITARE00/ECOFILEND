@@ -2,145 +2,131 @@ import React, { useContext, createContext } from 'react';
 
 import { useAddress, useContract, useMetamask, useContractWrite } from '@thirdweb-dev/react';
 import { ethers } from 'ethers';
-import TipperDapp from '../contracts/TipperDapp.json';
+import EcoFilend from '../contracts/EcoFilend.json';
 
 
 const StateContext = createContext();
 
 export const StateContextProvider = ({ children }) => {
-    const { contract } = useContract('0xC4d42d1b84437cCD82fF8331b20A5dAf1C05DD3d', TipperDapp.abi);
-    const { mutateAsync: createElection } = useContractWrite(contract, 'createElection');
-    const { mutateAsync: registerTipper } = useContractWrite(contract, 'registerTipper');
-    const { mutateAsync: registerArtist } = useContractWrite(contract, 'registerArtist');
-    const { mutateAsync: make_Tip } = useContractWrite(contract, 'make_Tip');
+    const { contract } = useContract('0x4a59efe74aA8EC059BE05A4FF8C205dA7b29f757', EcoFilend.abi);
+    const { mutateAsync: register } = useContractWrite(contract, 'register');
+    const { mutateAsync: _sendRequest } = useContractWrite(contract, '_sendRequest');
+    const { mutateAsync: _processResponse } = useContractWrite(contract, '_processResponse');
+    const { mutateAsync: transferTokensPayLINK } = useContractWrite(contract, 'transferTokensPayLINK');
+    const { mutateAsync: mint } = useContractWrite(contract, 'mint');
     const address = useAddress();
     const connect = useMetamask();
 
-    const publishTipper = async (name) => {
+    const publishRegistration = async (_name, _receiveraddress, _city, _state, _country, _image) => {
         try {
-            const data = await registerTipper({
+            const data = await register({
                 args: [
-                    name
-                ]
-            });
-            console.log("contract call succes", data);
-        } catch (error) {
-            console.log("contract call failed", error);
-        }
-    }
-
-    const publishArtist = async (name) => {
-        try {
-            const data = await registerArtist({
-                args: [
-                    name
-                ]
-            });
-            console.log("contract call succes", data);
-        } catch (error) {
-            console.log("contract call failed", error);
-        }
-    }
-
-    const publishElection = async (_electionName, _voteToken, _image, _candidateAddress) => {
-        try {
-            const data = await createElection({
-                args: [
-                    address,
-                    _electionName,
-                    _voteToken,
-                    _image,
-                    _candidateAddress
+                    _name,
+                    _receiveraddress,
+                    _city,
+                    _state, _country, _image
                 ]
             })
             console.log("contract call success", data)
         } catch (error) {
             console.log("contract call failed", error)
         }
-
     }
 
-    const getElections = async () => {
-        const elections = await contract.call
-            ('getElections');
-
-        const parsedElections = elections.map((election, i) => ({
-            owner: election.owner,
-            electionName: election.electionName,
-            voteToken: ethers.utils.formatEther
-                (election.voteToken.toString()),
-            image: election.image,
-            candidateAddress: election.candidateAddress,
-            pId: i
-        }));
-        return (parsedElections);
+    const publishRequest = async (_projectId) => {
+        try {
+            const data = await _sendRequest({
+                args: [
+                    _projectId
+                ]
+            })
+            console.log("contract call success", data)
+        } catch (error) {
+            console.log("contract call failed", error)
+        }
+    }
+    const publishProccessGrant = async (projectId) => {
+        try {
+            const data = await _processResponse({
+                args:
+                    [
+                        projectId
+                    ]
+            })
+            console.log("contract call success", data)
+        } catch (error) {
+            console.log("contract call failed", error)
+        }
     }
 
-    const getUserElections = async () => {
-        const allElections = await getElections();
-
-        const filteredElections = allElections.filter((election) =>
-            election.owner === address);
-        return filteredElections;
-
+    const publishTokenTransfer = async (projectId, _destinationChainSelector,
+        _receiver) => {
+        try {
+            const data = await transferTokensPayLINK({
+                args: [
+                    projectId,
+                    _destinationChainSelector,
+                    _receiver
+                ]
+            })
+            console.log("contract call success", data)
+        } catch (error) {
+            console.log("contract call failed", error)
+        }
     }
 
-    const makeVote = async (_electionId, _candidateAddress, voteToken) => {
+    const makeStake = async (_projectId, stake) => {
 
-        const data = await contract.call('makeVote', [_electionId, _candidateAddress], {
+        const data = await contract.call('stakeTokensForProject', [_projectId], {
             value: ethers.utils.parseEther
-                (voteToken)
+                (stake)
         });
 
         return data;
     }
-    const viewResults = async (_electionId) => {
+
+    const publishMint = async (projectId) => {
         try {
-            const results = await contract.call('viewResults', [_electionId]);
-            const numberOfResults = results[0].length;
-
-            const voteCounts = {}; // Object to store the aggregated vote counts
-
-            for (let i = 0; i < numberOfResults; i++) {
-                const candidateAddress = results[0][i];
-                const voteCount = parseInt(results[1][i].toString(), 10);
-
-                // Check if this candidate address is already in the voteCounts object
-                if (voteCounts[candidateAddress]) {
-                    // If it exists, add the vote count
-                    voteCounts[candidateAddress] += voteCount;
-                } else {
-                    // If it doesn't exist, initialize it with the vote count
-                    voteCounts[candidateAddress] = voteCount;
-                }
-            }
-
-            // Convert the voteCounts object back to an array of objects
-            const parsedResults = Object.keys(voteCounts).map(candidateAddress => ({
-                candidateAddress,
-                voteCount: voteCounts[candidateAddress].toString(),
-            }));
-
-            return parsedResults;
+            const data = await mint({
+                args:
+                    [
+                        projectId
+                    ]
+            })
+            console.log("contract call success", data)
         } catch (error) {
-            console.log(error);
+            console.log("contract call failed", error)
         }
     }
 
-    const publishTip = async (_artistAddress, token) => {
-        try {
-            const data = await contract.call('make_Tip', [_artistAddress], {
-                value: ethers.utils.parseEther
-                    (token)
-            });
-            console.log(data)
-            return data;
-        } catch (error) {
-            console.log(error)
-        }
+    const getReceivers = async () => {
+        const receivers = await contract.call
+            ('getReceivers');
 
+        const parsedReceivers = receivers.map((receiver, i) => ({
+            owner: receiver.owner,
+            name: receiver.name,
+            projectId: receiver.projectId,
+            city: receiver.city,
+            state: receiver.state,
+            country: receiver.country,
+            image: receiver.image,
+            totalReceived: receiver.totalReceived.toString(),
+            stakePower: ethers.utils.formatEther(receiver.stakePower.toString()),
+            pollutionIndex: receiver.pollutionIndex.toString(),
+            pId: i
+        }));
+        return (parsedReceivers);
     }
 
+    const getUserGrants = async () => {
+        const allReceivers = await getReceivers();
+
+        const filteredReceivers = allReceivers.filter((receiver) =>
+            receiver.owner === address);
+        return filteredReceivers;
+
+    }
 
     return (
         <StateContext.Provider
@@ -148,14 +134,14 @@ export const StateContextProvider = ({ children }) => {
                 address,
                 contract,
                 connect,
-                createElection: publishElection,
-                getElections,
-                getUserElections,
-                makeVote,
-                viewResults,
-                make_Tip: publishTip,
-                registerTipper: publishTipper,
-                registerArtist: publishArtist
+                register: publishRegistration,
+                _sendRequest: publishRequest,
+                _processResponse: publishProccessGrant,
+                transferTokensPayLINK: publishTokenTransfer,
+                makeStake,
+                mint: publishMint,
+                getReceivers,
+                getUserGrants
             }}>
             {children}
         </StateContext.Provider>
