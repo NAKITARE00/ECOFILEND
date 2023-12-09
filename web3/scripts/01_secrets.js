@@ -1,8 +1,6 @@
 const { SecretsManager } = require("@chainlink/functions-toolkit");
-
 const { signer } = require("../connection.js");
 const { networks } = require("../networks.js");
-
 require("@chainlink/env-enc").config();
 
 const NETWORK = "avalancheFuji";

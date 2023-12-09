@@ -46,9 +46,9 @@ const CreateGrant = () => {
         });
     };
     return (
-        <div className="bg-[#1c1c24] flex justify-center items-center bg-[#3a3a43] flex-col rounded-[10px] sm:p-15p-4">
+        <div className="bg-[#808191] flex justify-center items-center bg-[#D8D8D8]  w-[90%] flex-col rounded-[10px] sm:p-15p-4">
             {loading && 'Loader...'}
-            <div className="flex justify-center items-center p-[16px] sm:min-w-[480px] bg-[#3a3a43] mt-[30px] rounded-[10px]">
+            <div className="flex justify-center items-center p-[16px] sm:min-w-[480px] bg-[#1dc071] mt-[30px] rounded-[10px]">
                 <h1 className="font-epilogue font-bold sm:text-[24px] text-[17px] leading-[37px] text-white">Create Grant</h1>
             </div>
             <form onSubmit={handleSubmit} className="w-[] mt-[65px] flex flex-col gap-[30px] sm:min-w-[200px]">

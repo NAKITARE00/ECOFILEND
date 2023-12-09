@@ -7,7 +7,8 @@ import { profile } from '../assets';
 
 const GrantDetails = () => {
     const { state } = useLocation();
-    const { makeStake, _sendRequest, _processResponse, transferTokensPayLINK, contract, address } = useStateContext()
+    const { makeStake, _sendRequest, _processResponse, transferTokensPayLINK, mint, minter,
+        contract, address } = useStateContext()
     const [isLoading, setIsLoading] = useState(false);
     const [stake, setStake] = useState([]);
     console.log(state);
@@ -18,6 +19,12 @@ const GrantDetails = () => {
     const handleStake = async () => {
         setIsLoading(true);
         await makeStake(state.projectId, stake)
+        setIsLoading(false);
+    }
+
+    const handleMint = async () => {
+        setIsLoading(true);
+        await mint()
         setIsLoading(false);
     }
 
@@ -35,74 +42,122 @@ const GrantDetails = () => {
 
     const handleTransfer = async () => {
         setIsLoading(true);
-        await transferTokensPayLINK(state.projectId);
+        await transferTokensPayLINK(state.projectId, "16015286601757825753");
         setIsLoading(false);
     }
 
     return (
-        <div>
+        <div className="w-[90%]">
             {isLoading && 'Loading...'}
             <div className="w-full flex md:flex-row flex-col mt-10
             gap-[30px]">
                 <div className="flex-1 flex-col">
                     <img src={state.image} alt="grant" className="w-full 
                     h-[410px] object-cover rounded-xl"/>
-                    <div className="relative w-full h-[5px] bg-[#3a3a43]">
+                    <div className="relative w-full h-[5px] bg-[#4acd8d]">
                     </div>
                 </div>
             </div>
-            <div className="mt-[60px] flex lg:flex-row flex-col gap-5">
+            <div className="mt-[60px] flex lg:flex-row gap-5">
                 <div className="flex-[2] flex flex-col gap-[40px]">
-                    <div>
-                        <h4 className="font-epilogue font-semibold text-[18px] text-black uppercase">
+                    <div className='w-[80%]'>
+                        <h4 className="font-epilogue font-bold text-[18px] text-black uppercase">
                             {state.name}
                         </h4>
                         <div className="flex flex-row items-center flex-wrap gap-[18px]">
-                            <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">{state.city}</h4>
-                            <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">{state.country}</h4>
+                            <h4 className="font-epilogue font-semibold text-[14px] bg-[#4acd8d] rounded-md p-1 break-all">{state.city}</h4>
+                            <h4 className="font-epilogue font-semibold text-[14px] bg-[#4acd8d] rounded-md p-1 break-all">{state.country}</h4>
                         </div>
-                        <div className="mt-[20px] flex flex-row items-center flex-wrap gap-[18px]">
-                            <div className="w-[52px] h-[52px] flex items-center justify-center rounded-full bg-[#2c2f32] cursor-pointer">
+                        <div className="mt-[20px]  flex flex-row items-center flex-wrap gap-[18px]">
+                            <div className="w-[52px] h-[52px] flex items-center justify-center rounded-full bg-[#4acd8d] cursor-pointer">
                                 <img src={profile} alt="user" className="w-[60%] h-[60%] object-contain" />
                             </div>
-                            <div>
-                                <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">Grant Account - {state.owner}</h4>
-                                <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">Grant Received - {state.totalReceived}</h4>
-                                <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">Stake-Power - {state.stakePower}</h4>
-                                <h4 className="font-epilogue font-semibold text-[14px] bg-green-200 rounded-md p-1 break-all">Current Pollution Index - {state.pollutionIndex}</h4>
+                            <div className="bg-[#4acd8d] rounded-[10px] p-[10px]">
+                                <h4 className="font-epilogue font-semibold text-[16px] rounded-md p-1 break-all">Grant Account: {state.owner}</h4>
+                                <h4 className="font-epilogue font-semibold text-[16px] rounded-md p-1 break-all">Stake-Power: {state.stakePower}</h4>
                             </div>
 
                         </div>
                     </div>
-                    <div className="flex-1 mt-[20px]">
-                        <h4 className="font-epilogue font-semibold text-[18px] 
-                         text-black uppercase">
-                            Stake To Earn Governance Rights
-                        </h4>
-                        <div className="my-[20px] flex flex-col p-4 bg-[#1c1c24] rounded-[10px]">
-                            <p className="font-epilogue font-medium text-[20px] leading-[30px] text-center text-[#808191]">
-                                Make Stake
-                            </p>
-                            <div className="mt-[30px]">
+                    <div className="flex-1 mt-[5px] w-[74%]">
+                        <div className="my-[20px] flex flex-col p-4 bg-[] rounded-[10px] border-[3px] items-center border-[#4acd8d] ">
+                            <div className="py-[1px] mt-[30px]">
+                                <div className="mb-[50px]">
+                                    <h4 className="font-epilogue font-bold text-[18px] 
+                                    text-black uppercase"
+                                    >
+                                        Stake To Earn Governance Rights
+                                    </h4>
+                                </div>
                                 <input
                                     type="text"
-                                    placeholder="Enter Token Amount"
-                                    className="w-full bg-transparent rounded-[10px] border border-grey py-2 px-4 text-white 
-                                        placeholder-white focus:outline-none focus:ring-2 focus:ring-purple-600 
-                                        placeholder-opacity-50"
+                                    placeholder="enter stake amount"
+                                    className="w-[370px] height-[60px] flex rounded-[10px] border-[1px] border-[#4acd8d]
+                                    font-epilogue font-normal text-[18px] sm:min-w-[300px]
+                                    placeholder:text-[15px] placeholder:text-[grey] text-black text-center
+                                    bg-transparent outline-none focus:outline-none focus:ring-2 
+                                    focus:ring-purple-600 
+                                    "
                                     value={stake}
                                     onChange={(e) => setStake(e.target.value)}
                                 />
                             </div>
-                            <div className="my-[20px]">
+                            <div className="my-[20px] items-center">
                                 <CustomButton
                                     btnType="button"
-                                    title="STAKE"
-                                    styles="w-full bg-[#8c6dfd]"
+                                    title="Stake"
+                                    styles="w-full bg-[#4acd8d]"
                                     handleClick={handleStake}
                                 />
+
+                                <div className="mt-[20px] justify-center">
+                                    <CustomButton
+                                        btnType="button"
+                                        title="Mint Certificate"
+                                        styles="w-50% bg-[#4acd8d]"
+                                        handleClick={handleMint}
+                                    />
+                                </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <div className='w-[90%] flex-1 flex-col gap-5 justify-left'>
+                    <div className="p-[20px] border-[3px] flex-col gap-5 rounded-[10px] items-center border-[#4acd8d] space-y-4
+                    ">
+                        <div>
+                            <CustomButton
+                                btnType="button"
+                                title="Request Pollution Info"
+                                styles="w-full bg-[#4acd8d]"
+                                handleClick={handleRequest}
+                            />
+                        </div>
+                        <div className="mt-[4]">
+                            <CustomButton
+                                btnType="button"
+                                title="Process Request"
+                                styles="w-full bg-[#4acd8d]"
+                                handleClick={handleResponse}
+                            />
+                            <h4 className="font-epilogue font-bold text-[16px] rounded-md p-1 break-all">Current Pollution Index:</h4>
+                            <h4 className="font-epilogue w-[10%] font-semibold text-[14px] text-center bg-[#4acd8d] rounded-md p-1 break-all">{state.pollutionIndex}</h4>
+                        </div>
+                        <div className="mt-[40px]">
+                            <CustomButton
+                                btnType="button"
+                                title="Process Payment"
+                                styles="w-full bg-[#4acd8d]"
+                                handleClick={handleTransfer}
+                            />
+                            <h4 className="font-epilogue font-bold text-[16px] rounded-md p-1 break-all">Grant Received:</h4>
+                            <h4 className="font-epilogue w-[10%] font-semibold text-[14px] text-center bg-[#4acd8d] rounded-md p-1 break-all">{state.totalReceived}</h4>
+                        </div>
+                    </div>
+                    <div className="mt-[80px]">
+                        <h4 className="bg-[#4acd8d] font-epilogue font-semibold text-[18px] text-center rounded-md p-1 break-all">
+                            Grants Are Earned Based On Index
+                        </h4>
                     </div>
                 </div>
             </div>

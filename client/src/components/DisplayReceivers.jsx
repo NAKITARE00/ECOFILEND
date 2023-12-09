@@ -12,8 +12,8 @@ const DisplayReceivers = ({ title, isLoading, receivers }) => {
     }
     return (
         <div>
-            <h1 className="font-epilogue font-semibold text-[18px]
-            text-white text-left">
+            <h1 className="font-epilogue font-bold text-[18px]
+            text-black text-left">
                 {title} ({receivers.length})
             </h1>
 

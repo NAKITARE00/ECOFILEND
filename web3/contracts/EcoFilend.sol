@@ -25,8 +25,8 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     mapping(uint256 => bytes32) public projectToResponse;
 
     //CCIPSETUP
-    address c_router;
-    address c_link;
+    address immutable c_router;
+    address immutable c_link;
     IRouterClient router;
     LinkTokenInterface linkToken;
     uint64 destinationChainSelector;
@@ -66,7 +66,7 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         token = _token;
         destinationChainSelector = _destinationChainSelector;
         source = _source;
-        donId = "fun-avalanche-fuji-1";
+        donId = "fun-polygon-mumbai-1";
         secretsLocation = FunctionsRequest.Location.DONHosted;
         callbackGasLimit = 300000;
         encryptedSecretsReference = _encryptedSecretsReference;
@@ -168,9 +168,6 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         GrantReceiver storage grantReceiver = grantreceiversdisplay[projectId];
         grantReceiver.oldpollutionIndex = grantReceiver.pollutionIndex;
         grantReceiver.pollutionIndex = abi.decode(s_lastResponse, (uint256));
-        uint256 amount = (grantReceiver.pollutionIndex -
-            grantReceiver.oldpollutionIndex) * grantQuota;
-        transferTokensPayLINK(projectId, destinationChainSelector, grantQuota);
         return grantReceiver.pollutionIndex;
     }
 
@@ -193,19 +190,20 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
 
     function transferTokensPayLINK(
         uint256 projectId,
-        uint64 _destinationChainSelector,
-        uint256 _amount
+        uint64 _destinationChainSelector
     )
         public
         onlyOwner
         onlyAllowlistedChain(_destinationChainSelector)
         returns (bytes32 messageId)
     {
-        GrantReceiver memory grantReceiver = grantreceiversdisplay[projectId];
+        GrantReceiver storage grantReceiver = grantreceiversdisplay[projectId];
+        uint256 amount = (grantReceiver.pollutionIndex -
+            grantReceiver.oldpollutionIndex) * grantQuota;
         Client.EVM2AnyMessage memory evm2AnyMessage = _buildCCIPMessage(
             grantReceiver.owner,
             token,
-            _amount,
+            grantQuota,
             address(linkToken)
         );
 
@@ -216,17 +214,17 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
 
         linkToken.approve(address(router), fees);
 
-        IERC20(token).approve(address(router), _amount);
+        IERC20(token).approve(address(router), grantQuota);
 
         messageId = router.ccipSend(_destinationChainSelector, evm2AnyMessage);
-        grantReceiver.totalReceived += _amount;
+        grantReceiver.totalReceived += grantQuota;
 
         emit TokensTransferred(
             messageId,
             _destinationChainSelector,
             grantReceiver.owner,
             token,
-            _amount,
+            grantQuota,
             address(linkToken),
             fees
         );
@@ -289,15 +287,13 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     //mints CROSSCHAIN NFT (Staking Certificate)
     event MessageSent(bytes32 messageId);
 
-    function mint(uint256 projectId) public returns (bytes32) {
-        require(projectStakes[projectId][msg.sender] > 0, "No Stakes Made");
+    function mint(uint256 projectId) external {
+        require(projectStakes[projectId][msg.sender] > 0, "No stake found");
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(stakeCertMinter),
             data: abi.encodeWithSignature("mint(address)", msg.sender),
             tokenAmounts: new Client.EVMTokenAmount[](0),
-            extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV1({gasLimit: 200_000, strict: false})
-            ),
+            extraArgs: "",
             feeToken: c_link
         });
 
@@ -309,7 +305,6 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         );
 
         emit MessageSent(messageId);
-        return messageId;
     }
 
     function getReceivers() public view returns (GrantReceiver[] memory) {

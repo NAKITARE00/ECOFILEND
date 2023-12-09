@@ -4,7 +4,7 @@ import { tipper, menu } from '../assets';
 import { navlinks } from '../constants';
 
 const Icon = ({ styles, name, imgUrl, isActive, disabled, handleClick }) => (
-    <div className={`w-[45px] h-[45px] rounded-[5px] p-[0] ${isActive && isActive === name && 'bg-[#2c2f32]'} flex justify-center items-center 
+    <div className={`w-[75px] h-[75px] rounded-[5px] p-[0] ${isActive && isActive === name && 'bg-[]'} flex justify-center items-center 
     ${!disabled && 'cursor-pointer'} ${styles}`} onClick={handleClick}>
         {!isActive ? (
             <img src={imgUrl} alt="fund_logo" className="w-9/10 h-9/10" />
@@ -20,13 +20,14 @@ const Sidebar = () => {
     const [toggleDrawer, setToggleDrawer] = useState(false);
 
     return (
-        <div className="flex justify-between items-center bg-[#1dc071] flex-col sticky top-4 h-[full]">
-            <Link to="/">
-                <Icon styles="w-[72px] h-[58px] bg-[]" imgUrl={tipper} />
-            </Link>
+        <div className="flex justify-left bg-[] flex-col sticky top-4">
 
-            <div className="  flex-1 flex flex-col justify-between items-center bg-[#1dc071] rounded-[20px] w-[76px] py-4 mt-12">
-                <div className="my-[105px] flex flex-col justify-center items-center gap-3">
+
+            <div className="flex-1 flex-col items-center bg-[] 20px rounded-[20px] w-[176px]">
+                <Link to="/">
+                    <Icon styles="w-[290px] h-[78px] bg-[]" imgUrl={tipper} />
+                </Link>
+                <div className="flex flex-col justify-right items-center gap-3 ml-10">
                     {navlinks.map((link) => (
                         <Icon
                             key={link.name}
@@ -42,7 +43,7 @@ const Sidebar = () => {
                     ))}
                 </div>
             </div>
-        </div>
+        </div >
     )
 }
 

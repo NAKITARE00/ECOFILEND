@@ -1,19 +1,19 @@
 import React, { useContext, createContext } from 'react';
-
 import { useAddress, useContract, useMetamask, useContractWrite } from '@thirdweb-dev/react';
 import { ethers } from 'ethers';
 import EcoFilend from '../contracts/EcoFilend.json';
-
+import SourceMinter from '../contracts/SourceMinter.json';
 
 const StateContext = createContext();
 
 export const StateContextProvider = ({ children }) => {
-    const { contract } = useContract('0x4a59efe74aA8EC059BE05A4FF8C205dA7b29f757', EcoFilend.abi);
+    const { contract } = useContract('0x79C8326F68B131Ed4365e5C4ddab6f5212D6f78E', EcoFilend.abi);
+    const { minter } = useContract('0xC164b784be9aa52381776c9249c3f639a08014B1', SourceMinter.abi);
     const { mutateAsync: register } = useContractWrite(contract, 'register');
     const { mutateAsync: _sendRequest } = useContractWrite(contract, '_sendRequest');
     const { mutateAsync: _processResponse } = useContractWrite(contract, '_processResponse');
     const { mutateAsync: transferTokensPayLINK } = useContractWrite(contract, 'transferTokensPayLINK');
-    const { mutateAsync: mint } = useContractWrite(contract, 'mint');
+    const { mutateAsync: mint } = useContractWrite(minter, 'mint');
     const address = useAddress();
     const connect = useMetamask();
 
@@ -45,6 +45,7 @@ export const StateContextProvider = ({ children }) => {
             console.log("contract call failed", error)
         }
     }
+
     const publishProccessGrant = async (projectId) => {
         try {
             const data = await _processResponse({
@@ -59,14 +60,12 @@ export const StateContextProvider = ({ children }) => {
         }
     }
 
-    const publishTokenTransfer = async (projectId, _destinationChainSelector,
-        _receiver) => {
+    const publishTokenTransfer = async (projectId, _destinationChainSelector) => {
         try {
             const data = await transferTokensPayLINK({
                 args: [
                     projectId,
-                    _destinationChainSelector,
-                    _receiver
+                    _destinationChainSelector
                 ]
             })
             console.log("contract call success", data)
@@ -85,18 +84,9 @@ export const StateContextProvider = ({ children }) => {
         return data;
     }
 
-    const publishMint = async (projectId) => {
-        try {
-            const data = await mint({
-                args:
-                    [
-                        projectId
-                    ]
-            })
-            console.log("contract call success", data)
-        } catch (error) {
-            console.log("contract call failed", error)
-        }
+    const makeMint = async () => {
+        const data = await mint();
+        return data;
     }
 
     const getReceivers = async () => {
@@ -133,13 +123,14 @@ export const StateContextProvider = ({ children }) => {
             value={{
                 address,
                 contract,
+                minter,
                 connect,
                 register: publishRegistration,
                 _sendRequest: publishRequest,
                 _processResponse: publishProccessGrant,
                 transferTokensPayLINK: publishTokenTransfer,
                 makeStake,
-                mint: publishMint,
+                mint: makeMint,
                 getReceivers,
                 getUserGrants
             }}>

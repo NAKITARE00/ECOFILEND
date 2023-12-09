@@ -20,7 +20,7 @@ const Profile = () => {
         if (contract) fetchGrants();
     }, [address, contract]);
     return (
-        <div className="bg-[#1c1c24] flex justify-center
+        <div className="bg-[] flex justify-center
         items-center flex-col rounded-[10px] sm:p-10p-4">
 
             <DisplayReceivers

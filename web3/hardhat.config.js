@@ -23,10 +23,14 @@ module.exports = {
       url: `https://api.avax-test.network/ext/C/rpc`,
       accounts: process.env.PRIVATE_KEY,
       chainId: 43113
-    }
+    },
+    polygonMumbai: {
+      url: `https://rpc-mumbai.maticvigil.com`,
+      accounts: process.env.PRIVATE_KEY,
+      chainId: 80001
+    },
   },
   etherscan: {
-
     apiKey: `${process.env.ETHERSCAN_API_KEY}`,
   }
 }

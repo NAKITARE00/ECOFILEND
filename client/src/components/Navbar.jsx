@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStateContext } from '../context';
 import { CustomButton } from "./";
 import { tipper, menu, search, profile } from '../assets';
-
 import { navlinks } from '../constants';
 
 const Navbar = () => {
@@ -11,18 +10,23 @@ const Navbar = () => {
     const [isActive, setIsActive] = useState('dashboard');
     const [toggleDrawer, setToggleDrawer] = useState(false);
     const { connect, address } = useStateContext();
+    const truncatedAddress = address ? (
+        address.length > 4 ? `${address.slice(0, 2)}...${address.slice(-3)}` : address
+    ) : 'Connect';
 
     return (
-        <div className="flex md:flex-row flex-col-reverse justify-between mt-[10px]
-            mb-[35px] gap-6">
-            <div className="lg:flex-1 flex flex-row max-w-[458px] py-2 pl-4 pr-2 h-[52px] bg-[#1c1c24] 
-            rounded-[100px]">
+        <div className="flex md:flex-row flex-col-reverse justify-between mt-[10px] w-[95%]
+            mb-[35px] gap-6 mr-10 ">
+            <div className="lg:flex-1 flex flex-row justify-center gap-2 py-2 pl-4 pr-2 h-[52px] bg-[transparent] 
+                rounded-[100px]">
                 <input type='text' placeholder='search for grants'
-                    className='flex w-full font-epilogue font-normal 
-                    text-[14px] placeholder:text-[#4b5264] text-white
-                     bg-transparent outline-none'
+                    className='flex w-[370px] rounded-[10px] border-[1px] border-[#4acd8d]
+                     font-epilogue font-normal text-center
+                     text-[14px] placeholder:text-[grey] text-black
+                     bg-transparent outline-none focus:outline-none focus:ring-2 
+                     focus:ring-purple-600 '
                 />
-                <div className='w-[72px] h-full rounded-[240px] 
+                <div className='w-[42px] h-full rounded-[240px] 
                 bg-[#4acd8d] flex justify-center 
                 items-center cursor-pointer'>
                     <img src={search} alt="search" className='w-[15px] h-[15px]
@@ -34,8 +38,8 @@ const Navbar = () => {
             <div className="sm:flex hidden flex-row justify-end gap-4">
                 <CustomButton
                     btnType="button"
-                    title={address ? address : 'Connect'}
-                    styles={address ? 'bg-[#1dc071]' : 'bg-[#8c6dfd]'}
+                    title={truncatedAddress}
+                    styles={address ? 'bg-[#4acd8d]' : 'bg-[#4acd8d]'}
                     handleClick={() => {
                         if (address) navigate('/')
                         else connect();
@@ -43,7 +47,7 @@ const Navbar = () => {
                 />
                 <Link to="/profile">
                     <div className="w-[52px] h-[52px] rounded-full
-                    bg-[#2c2f32] flex justify-center items-center
+                    bg-[#4acd8d] flex justify-center items-center
                     cursor-pointer">
                         <img src={profile} alt="user" className="w-[60%]
                         h-[60%] object-contain"/>
@@ -52,7 +56,7 @@ const Navbar = () => {
             </div>
             {/* Mobile View */}
             <div className="sm:hidden flex pt-[1px] justify-between items-center relative">
-                <div className="w-[55px] h-[60px]  flex justify-center items-center cursor-pointer">
+                <div className="w-[105px] h-[65px]  flex justify-center items-center cursor-pointer">
                     <img src={tipper} alt="user" className="w-[95%] h-[90%] object-contain" />
                 </div>
 
@@ -90,10 +94,10 @@ const Navbar = () => {
                     <div className="flex mx-4">
                         <CustomButton
                             btnType="button"
-                            title={address ? 'Create Election' : 'Connect'}
-                            styles={address ? 'bg-[#1dc071]' : 'bg-[#8c6dfd]'}
+                            title={address ? (address.length > 10 ? `${address.slice(0, 10)}...` : address) : 'Connect'}
+                            styles={address ? 'bg-[#4acd8d]' : 'bg-[#4acd8d]'}
                             handleClick={() => {
-                                if (address) navigate('create-election')
+                                if (address) navigate('/')
                                 else connect();
                             }}
                         />

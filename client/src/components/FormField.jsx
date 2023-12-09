@@ -5,7 +5,7 @@ const FormField = ({ labelName, placeholder, inputType, value, handleChange }) =
         <label className="flex-1 w-full flex flex-col justify-center">
             {labelName && (
                 <span className="font-epilogue font-bold text-[15px] leading-[23px]
-                text-[#808191] mb-[10px]">{labelName}</span>
+                text-[black] mb-[10px]">{labelName}</span>
             )}
             <input
                 requiredvalue={value}

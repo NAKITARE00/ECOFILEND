@@ -1,42 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {CCIPReceiver} from "@chainlink/contracts-ccip/src/v0.8/ccip/applications/CCIPReceiver.sol";
+import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
+import {IRouterClient} from "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {Client} from "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
-import {MyNFT} from "./MyNFT.sol";
-import {OwnerIsCreator} from "@chainlink/contracts-ccip/src/v0.8/shared/access/OwnerIsCreator.sol";
-import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/token/ERC20/IERC20.sol";
 
-contract StakerCertificateMinter is CCIPReceiver, OwnerIsCreator {
-    MyNFT nft;
+contract SourceMinter {
+    address i_router;
+    address i_link;
 
-    event MintCallSuccessfull();
+    event MessageSent(bytes32 messageId);
+    uint64 destinationChainSelector;
+    address receiver;
 
-    constructor(address router, address nftAddress) CCIPReceiver(router) {
-        nft = MyNFT(nftAddress);
+    constructor(address router, address link) {
+        i_router = router;
+        i_link = link;
+        LinkTokenInterface(i_link).approve(i_router, type(uint256).max);
+        destinationChainSelector = 16015286601757825753;
+        receiver = 0x1FF263E7Ce2d42384Da9996173C258277cF82464;
     }
 
-    function _ccipReceive(
-        Client.Any2EVMMessage memory message
-    ) internal override {
-        (bool success, ) = address(nft).call(message.data);
-        require(success);
-        emit MintCallSuccessfull();
-    }
+    receive() external payable {}
 
-    error FailedToWithdrawEth(address owner, address target, uint256 value);
+    function mint() external {
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+            receiver: abi.encode(receiver),
+            data: abi.encodeWithSignature("mint(address)", msg.sender),
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            extraArgs: "",
+            feeToken: i_link
+        });
 
-    function withdraw(address beneficiary) public onlyOwner {
-        uint256 amount = address(this).balance;
-        (bool sent, ) = beneficiary.call{value: amount}("");
-        if (!sent) revert FailedToWithdrawEth(msg.sender, beneficiary, amount);
-    }
+        bytes32 messageId;
 
-    function withdrawToken(
-        address beneficiary,
-        address token
-    ) public onlyOwner {
-        uint256 amount = IERC20(token).balanceOf(address(this));
-        IERC20(token).transfer(beneficiary, amount);
+        messageId = IRouterClient(i_router).ccipSend(
+            destinationChainSelector,
+            message
+        );
+
+        emit MessageSent(messageId);
     }
 }

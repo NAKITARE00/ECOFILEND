@@ -18,7 +18,7 @@ const Home = () => {
         if (contract) fetchReceivers();
     }, [address, contract]);
     return (
-        <div className="bg-[#1c1c24] flex justify-center
+        <div className="bg-[] flex justify-center mr-[20px]
         items-center flex-col rounded-[10px] sm:p-10p-4">
             <div className="justify-left flex flex-row">
                 <DisplayReceivers
