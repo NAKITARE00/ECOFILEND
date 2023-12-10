@@ -1,16 +1,14 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { Mumbai } from "@thirdweb-dev/chains";
+import { Mumbai, AvalancheFuji } from "@thirdweb-dev/chains";
+import { ThirdwebConfigProvider } from "@thirdweb-dev/react";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { BrowserRouter as Router } from 'react-router-dom';
-
 import "./index.css";
 import { StateContextProvider } from "./context";
-
-// This is the chain your dApp will work on.
-// Change this to the chain your app is built for.
-// You can also import additional chains from `@thirdweb-dev/chains` and pass them directly.
+import { ThemeProvider } from 'styled-components'
+import { ThorinGlobalStyles, lightTheme } from '@ensdomains/thorin'
 
 
 const container = document.getElementById("root");
@@ -19,10 +17,13 @@ root.render(
   <React.StrictMode>
     <ThirdwebProvider
       clientId={import.meta.env.VITE_TEMPLATE_CLIENT_ID}
-      activeChain={Mumbai}
+      activeChain={AvalancheFuji}
     >
       <StateContextProvider>
-        <App />
+        <ThemeProvider theme={lightTheme}>
+          <ThorinGlobalStyles />
+          <App />
+        </ThemeProvider>
       </StateContextProvider>
     </ThirdwebProvider>
   </React.StrictMode >

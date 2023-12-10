@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { Home, GrantDetails, CreateGrant, Profile, Registration } from "./pages";
+import { Home, GrantDetails, CreateGrant, Profile, Registration, LandingPage } from "./pages";
 import { Navbar, Sidebar, Footer } from "./components"
+import { BackdropSurface, Portal, Card } from '@ensdomains/thorin'
 
 function App() {
   return (
@@ -14,7 +15,8 @@ function App() {
           <div className="flex-1 max-sm:w-full max-w-[1280px] mx-auto sm:pr-5">
             <Navbar />
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/Home" element={<Home />} />
               <Route path="/grant-details/:id" element={<GrantDetails />} />
               <Route path="/create-grant" element={<CreateGrant />} />
               <Route path="/profile" element={<Profile />} />

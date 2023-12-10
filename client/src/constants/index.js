@@ -4,7 +4,7 @@ export const navlinks = [
     {
         name: 'dashboard',
         imgUrl: dashboard,
-        link: '/',
+        link: '/Home',
     },
     {
         name: 'create-grant',

@@ -11,7 +11,10 @@ import menu from './menu.svg';
 import money from './money.svg';
 import loader from './loader.svg';
 import thirdweb from './thirdweb.png';
-import tipper from './tipper.png'
+import tipper from './tipper.png';
+import avatar from './avatar.png';
+import eco from './eco.png';
+import photo from './photo.png';
 
 export {
   tagType,
@@ -27,5 +30,8 @@ export {
   money,
   loader,
   thirdweb,
-  tipper
+  tipper,
+  avatar,
+  eco,
+  photo
 };

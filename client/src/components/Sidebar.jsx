@@ -21,11 +21,9 @@ const Sidebar = () => {
 
     return (
         <div className="flex justify-left bg-[] flex-col sticky top-4">
-
-
-            <div className="flex-1 flex-col items-center bg-[] 20px rounded-[20px] w-[176px]">
+            <div className="flex-1 ml-14 flex-col items-center bg-[] 20px rounded-[20px] w-[176px]">
                 <Link to="/">
-                    <Icon styles="w-[290px] h-[78px] bg-[]" imgUrl={tipper} />
+                    <Icon styles="w-[99%] h-[99%px] bg-[]" imgUrl={tipper} />
                 </Link>
                 <div className="flex flex-col justify-right items-center gap-3 ml-10">
                     {navlinks.map((link) => (

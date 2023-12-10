@@ -203,7 +203,7 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
         Client.EVM2AnyMessage memory evm2AnyMessage = _buildCCIPMessage(
             grantReceiver.owner,
             token,
-            grantQuota,
+            amount,
             address(linkToken)
         );
 
@@ -288,7 +288,10 @@ contract EcoFilend is FunctionsClient, OwnerIsCreator {
     event MessageSent(bytes32 messageId);
 
     function mint(uint256 projectId) external {
-        require(projectStakes[projectId][msg.sender] > 0, "No stake found");
+        require(
+            projectStakes[projectId][msg.sender] > 0,
+            "You have not staked for this project"
+        );
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(stakeCertMinter),
             data: abi.encodeWithSignature("mint(address)", msg.sender),

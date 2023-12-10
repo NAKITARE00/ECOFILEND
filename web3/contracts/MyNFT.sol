@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MyNFT is ERC721URIStorage, Ownable {
     string constant TOKEN_URI =
-        "https://ipfs.io/ipfs/QmYuKY45Aq87LeL1R5dhb1hqHLp6ZFbJaCP8jxqKM1MX6y/babe_ruth_1.json";
+        "https://d391b93f5f62d9c15f67142e43841acc.ipfscdn.io/ipfs/bafybeih6maphvuhjdfeil43owxf5ozysqp3zhqs5zhy2oe3mpbmej4pmda/eco.png";
     uint256 internal tokenId;
 
-    constructor() ERC721("MyNFT", "MNFT") {}
+    constructor() ERC721("STAKENFT", "STAKENFT") {}
 
     function mint(address to) public {
         _safeMint(to, tokenId);

@@ -38,7 +38,7 @@ const CreateGrant = () => {
                 );
 
                 setLoading(false);
-                navigate('/');
+                navigate('/Home');
             } else {
                 alert('Provide a valid image URL');
                 setForm({ ...form, image: '' });

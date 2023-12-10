@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import { useStateContext } from '../context';
 import { CustomButton } from '../components';
@@ -6,10 +6,12 @@ import { profile } from '../assets';
 
 
 const GrantDetails = () => {
+
     const { state } = useLocation();
-    const { makeStake, _sendRequest, _processResponse, transferTokensPayLINK, mint, minter,
-        contract, address } = useStateContext()
+    const { makeStake, _sendRequest, mint, _processResponse, transferTokensPayLINK,
+        address } = useStateContext()
     const [isLoading, setIsLoading] = useState(false);
+    console.log('Contract:', contract);
     const [stake, setStake] = useState([]);
     console.log(state);
     // useEffect(() => {
@@ -24,7 +26,7 @@ const GrantDetails = () => {
 
     const handleMint = async () => {
         setIsLoading(true);
-        await mint()
+        await mint(state.projectId)
         setIsLoading(false);
     }
 
@@ -93,7 +95,7 @@ const GrantDetails = () => {
                                     type="text"
                                     placeholder="enter stake amount"
                                     className="w-[370px] height-[60px] flex rounded-[10px] border-[1px] border-[#4acd8d]
-                                    font-epilogue font-normal text-[18px] sm:min-w-[300px]
+                                    font-epilogue font-normal text-[30px] sm:min-w-[300px]
                                     placeholder:text-[15px] placeholder:text-[grey] text-black text-center
                                     bg-transparent outline-none focus:outline-none focus:ring-2 
                                     focus:ring-purple-600 
@@ -151,7 +153,7 @@ const GrantDetails = () => {
                                 handleClick={handleTransfer}
                             />
                             <h4 className="font-epilogue font-bold text-[16px] rounded-md p-1 break-all">Grant Received:</h4>
-                            <h4 className="font-epilogue w-[10%] font-semibold text-[14px] text-center bg-[#4acd8d] rounded-md p-1 break-all">{state.totalReceived}</h4>
+                            <h4 className="font-epilogue w-[50%] font-semibold text-[14px] text-left bg-[#4acd8d] rounded-md p-1 break-all">{state.totalReceived}</h4>
                         </div>
                     </div>
                     <div className="mt-[80px]">

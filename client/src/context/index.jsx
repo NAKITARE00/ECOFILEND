@@ -2,18 +2,16 @@ import React, { useContext, createContext } from 'react';
 import { useAddress, useContract, useMetamask, useContractWrite } from '@thirdweb-dev/react';
 import { ethers } from 'ethers';
 import EcoFilend from '../contracts/EcoFilend.json';
-import SourceMinter from '../contracts/SourceMinter.json';
 
 const StateContext = createContext();
 
 export const StateContextProvider = ({ children }) => {
-    const { contract } = useContract('0x79C8326F68B131Ed4365e5C4ddab6f5212D6f78E', EcoFilend.abi);
-    const { minter } = useContract('0xC164b784be9aa52381776c9249c3f639a08014B1', SourceMinter.abi);
+    const { contract } = useContract('0x191074b05fc2487A42542d51439B2C5cfbF3daC8', EcoFilend.abi);
     const { mutateAsync: register } = useContractWrite(contract, 'register');
     const { mutateAsync: _sendRequest } = useContractWrite(contract, '_sendRequest');
     const { mutateAsync: _processResponse } = useContractWrite(contract, '_processResponse');
     const { mutateAsync: transferTokensPayLINK } = useContractWrite(contract, 'transferTokensPayLINK');
-    const { mutateAsync: mint } = useContractWrite(minter, 'mint');
+    const { mutateAsync: mint } = useContractWrite(contract, 'mint');
     const address = useAddress();
     const connect = useMetamask();
 
@@ -38,6 +36,19 @@ export const StateContextProvider = ({ children }) => {
             const data = await _sendRequest({
                 args: [
                     _projectId
+                ]
+            })
+            console.log("contract call success", data)
+        } catch (error) {
+            console.log("contract call failed", error)
+        }
+    }
+
+    const publishMint = async (projectId) => {
+        try {
+            const data = await mint({
+                args: [
+                    projectId
                 ]
             })
             console.log("contract call success", data)
@@ -84,11 +95,6 @@ export const StateContextProvider = ({ children }) => {
         return data;
     }
 
-    const makeMint = async () => {
-        const data = await mint();
-        return data;
-    }
-
     const getReceivers = async () => {
         const receivers = await contract.call
             ('getReceivers');
@@ -101,7 +107,7 @@ export const StateContextProvider = ({ children }) => {
             state: receiver.state,
             country: receiver.country,
             image: receiver.image,
-            totalReceived: receiver.totalReceived.toString(),
+            totalReceived: ethers.utils.formatEther(receiver.totalReceived.toString()),
             stakePower: ethers.utils.formatEther(receiver.stakePower.toString()),
             pollutionIndex: receiver.pollutionIndex.toString(),
             pId: i
@@ -123,14 +129,13 @@ export const StateContextProvider = ({ children }) => {
             value={{
                 address,
                 contract,
-                minter,
                 connect,
                 register: publishRegistration,
                 _sendRequest: publishRequest,
                 _processResponse: publishProccessGrant,
                 transferTokensPayLINK: publishTokenTransfer,
+                mint: publishMint,
                 makeStake,
-                mint: makeMint,
                 getReceivers,
                 getUserGrants
             }}>
